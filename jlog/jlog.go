@@ -6,24 +6,27 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/tendermint/tendermint/libs/rand"
 )
 
 var globalLogger *Logger
 
 func init() {
-	globalLogger = NewLogger(fmt.Sprintf("/home/celes/.jlog/%d.json", time.Now().Unix()))
+	globalLogger = NewLogger(fmt.Sprintf("/home/celes/.jlog/%s-%d.json", rand.Str(5), time.Now().Minute()))
 	globalLogger.Start(context.TODO())
 }
 
-func Log(v interface{}) {
-	globalLogger.queue <- v
+func Log(name string, data interface{}, metadata interface{}) {
+	wlog := WrappedLog{Data: data, Name: name, MetaData: metadata}
+	globalLogger.queue <- wlog
 }
 
 type Logger struct {
 	ctx   context.Context
 	file  *os.File
 	enc   *json.Encoder
-	queue chan interface{}
+	queue chan WrappedLog
 }
 
 func NewLogger(path string) *Logger {
@@ -35,7 +38,7 @@ func NewLogger(path string) *Logger {
 	return &Logger{
 		enc:   enc,
 		file:  file,
-		queue: make(chan interface{}, 10000),
+		queue: make(chan WrappedLog, 10000),
 	}
 }
 
@@ -61,4 +64,10 @@ func (l *Logger) Stop() {
 		}
 	}
 	l.file.Close()
+}
+
+type WrappedLog struct {
+	Data     interface{} `json:"data"`
+	Name     string      `json:"name"`
+	MetaData interface{} `json:"metadata,omitempty"`
 }
