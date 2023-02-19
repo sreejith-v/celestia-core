@@ -91,7 +91,7 @@ func (s *Server) handleReadFiles(w http.ResponseWriter, r *http.Request) {
 		events = append(events, evs...)
 	}
 
-	rawEvents, err := json.Marshal(events)
+	rawEvents, err := json.MarshalIndent(events, "", "  ")
 	if err != nil {
 		w.Write(NewErrorResponse(err.Error()))
 		return
