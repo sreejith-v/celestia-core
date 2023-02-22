@@ -47,18 +47,18 @@ func (s *Server) handleBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = s.writeBatch(batchRequest)
+	if err != nil {
+		w.Write(NewErrorResponse(err.Error()))
+		return
+	}
+
 	s.logger.Info(
 		"writing batch",
 		"chainID", batchRequest.ChainID,
 		"nodeID", batchRequest.NodeID,
 		"events", len(batchRequest.Events),
 	)
-
-	err = s.writeBatch(batchRequest)
-	if err != nil {
-		w.Write(NewErrorResponse(err.Error()))
-		return
-	}
 
 	w.Write(NewOKResponse())
 }

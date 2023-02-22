@@ -39,7 +39,7 @@ func NewClient(
 	batchSize int,
 ) *Client {
 	httpcli := &http.Client{
-		Timeout: 4 * time.Second, // todo: make this configurable
+		Timeout: 30 * time.Second, // todo: make this configurable
 	}
 	cli := &Client{
 		ctx:         ctx,

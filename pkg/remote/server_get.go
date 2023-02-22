@@ -67,9 +67,9 @@ func (s *Server) QueryFiles(chainID, nodeID, typ string) (fs []*LabeledFile, err
 	return fs, nil
 }
 
-// handleGetFiles handles the /get_events endpoint. It responds with a
+// handleGetEvents handles the /get_events endpoint. It responds with a
 // QueryResponse filled with any events that match the given query.
-func (s *Server) handleGetFiles(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleGetEvents(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

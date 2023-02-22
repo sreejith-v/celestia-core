@@ -169,6 +169,8 @@ func (lf *LabeledFile) Label(chainID, nodeID, eventType string) {
 
 // ReadJsonLinesFile reads a file, one line at a time, and decodes each line.
 func ReadJsonLinesFile[T any](f *LabeledFile) ([]T, error) {
+	// reset the file pointer to the beginning of the file
+	defer f.rf.Seek(0, io.SeekStart)
 	// iterate over the file and decode each line into an event
 	var events []T
 	d := json.NewDecoder(f.rf)

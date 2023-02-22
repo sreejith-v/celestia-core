@@ -23,6 +23,8 @@ type Server struct {
 	writeDir string
 	logger   log.Logger
 
+	pointless int
+
 	mut *sync.RWMutex
 	// the server expects the files to be in the following format:
 	// <chainID>/<nodeID>/<type>
@@ -40,10 +42,11 @@ func NewServer(dir string, logger log.Logger) *Server {
 
 func (s *Server) Start(addr string) error {
 	defer s.Stop()
-	http.HandleFunc(batchMethod, s.handleBatch)
-	http.HandleFunc(eventMethod, s.handleEvent)
-	http.HandleFunc(getEventsMethod, s.handleGetFiles)
-	return http.ListenAndServe(addr, nil)
+	mux := http.NewServeMux()
+	mux.HandleFunc(batchMethod, s.handleBatch)
+	mux.HandleFunc(eventMethod, s.handleEvent)
+	mux.HandleFunc(getEventsMethod, s.handleGetEvents)
+	return http.ListenAndServe(addr, mux)
 }
 
 func (s *Server) Stop() {
@@ -95,7 +98,15 @@ func (s *Server) GetFile(path string) (lf *LabeledFile, err error) {
 func (s *Server) getFile(chainID, nodeID, typ string) (*LabeledFile, bool) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
-	f, has := s.files[chainID][nodeID][typ]
+	chainIDMap, has := s.files[chainID]
+	if !has {
+		return nil, false
+	}
+	nodeIDMap, has := chainIDMap[nodeID]
+	if !has {
+		return nil, false
+	}
+	f, has := nodeIDMap[typ]
 	return f, has
 }
 

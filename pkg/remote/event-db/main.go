@@ -14,6 +14,9 @@ const (
 	pathFlag   = "path"
 	listenFlag = "listen"
 	portFlag   = "port"
+
+	DefaultListenAddr = "0.0.0.0"
+	DefaultListenPort = "25570"
 )
 
 func rootCMD() *cobra.Command {
@@ -52,8 +55,8 @@ func startCMD() *cobra.Command {
 		},
 	}
 
-	command.Flags().String(listenFlag, "0.0.0.0", "specify the listen address")
-	command.Flags().String(portFlag, "25570", "specify the port")
+	command.Flags().String(listenFlag, DefaultListenAddr, "specify the listen address")
+	command.Flags().String(portFlag, DefaultListenPort, "specify the port")
 	command.Flags().String(pathFlag, ".", "specify the path to the files")
 
 	return command
