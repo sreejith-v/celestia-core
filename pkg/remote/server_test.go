@@ -131,3 +131,27 @@ func TestReadWriteJsonLinesFile(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, sevs, 3)
 }
+
+func TestOpenLabeledFile(t *testing.T) {
+	dir := t.TempDir()
+	fpath := filepath.Join(dir, "test.json")
+
+	lf, err := OpenLabeledFile(fpath)
+	require.NoError(t, err)
+	require.NotNil(t, lf)
+	require.NotNil(t, lf.rf)
+	require.NotNil(t, lf.wf)
+
+	data := []string{"1", "2", "3"}
+
+	// write some data
+	err = WriteJsonLinesFile(lf, data)
+	require.NoError(t, err)
+
+	// read the data
+	s, err := ReadJsonLinesFile[string](lf)
+	require.NoError(t, err)
+
+	require.Equal(t, data, s)
+	require.NoError(t, lf.Close())
+}

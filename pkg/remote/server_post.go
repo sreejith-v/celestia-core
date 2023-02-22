@@ -47,18 +47,18 @@ func (s *Server) handleBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.logger.Info(
+		"writing batch",
+		"chainID", batchRequest.ChainID,
+		"nodeID", batchRequest.NodeID,
+		"events", len(batchRequest.Events),
+	)
+
 	err = s.writeBatch(batchRequest)
 	if err != nil {
 		w.Write(NewErrorResponse(err.Error()))
 		return
 	}
-
-	s.logger.Info(
-		"wrote batch",
-		"nodeID", batchRequest.NodeID,
-		"chainID", batchRequest.ChainID,
-		"events", len(batchRequest.Events),
-	)
 
 	w.Write(NewOKResponse())
 }
@@ -68,7 +68,6 @@ func (s *Server) writeEvent(ev Event) error {
 	if err != nil {
 		return err
 	}
-
 	return WriteJsonLinesFile(f, []Event{ev})
 }
 

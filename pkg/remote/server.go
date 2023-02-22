@@ -76,11 +76,13 @@ func (s *Server) GetFile(path string) (lf *LabeledFile, err error) {
 			return nil, err
 		}
 
-		lf, err := OpenLabeledFile(filepath.Join(s.writeDir, chainID, nodeID, typ+".json"))
+		lf, err = OpenLabeledFile(filepath.Join(s.writeDir, chainID, nodeID, typ+".json"))
 		if err != nil {
 			return nil, err
 		}
 		lf.Label(chainID, nodeID, typ)
+
+		// add the file to the server's filesystem
 		s.mut.Lock()
 		s.files = createPath(s.files, chainID, nodeID)
 		s.files[chainID][nodeID][typ] = lf

@@ -19,7 +19,7 @@ const (
 func rootCMD() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "event-db [flags]",
-		Short: "run a server that collects and serves arbitary json data",
+		Short: "collects and serves arbitary json data as flat files",
 	}
 	cmd.AddCommand(startCMD())
 	return cmd
@@ -28,7 +28,7 @@ func rootCMD() *cobra.Command {
 func startCMD() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "start [flags]",
-		Short: "start a json http server that collects events and writes them to relevant files",
+		Short: "start the server",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path, err := cmd.Flags().GetString(pathFlag)
@@ -62,6 +62,6 @@ func startCMD() *cobra.Command {
 func main() {
 	r := rootCMD()
 	if err := r.Execute(); err != nil {
-		fmt.Println(err)
+		fmt.Println(fmt.Errorf("fatal error: %w", err))
 	}
 }

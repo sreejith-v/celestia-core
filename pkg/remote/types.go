@@ -193,6 +193,13 @@ func WriteJsonLinesFile[T any](f *LabeledFile, evs []T) error {
 		return nil
 	}
 
+	// this should never be hit, but could be if the filesystem was manually
+	// manipulated, we should return an error instead of panicking to avoid
+	// crashing the server.
+	if f == nil || f.wf == nil {
+		return fmt.Errorf("cannot write to a nil file")
+	}
+
 	w := bufio.NewWriter(f.wf)
 	defer w.Flush()
 	for _, ev := range evs {

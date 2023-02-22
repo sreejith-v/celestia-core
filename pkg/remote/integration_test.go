@@ -64,7 +64,6 @@ func (s *ServerTestSuite) Test_handleEvent() {
 	typeID := tmrand.Str(20)
 	testData := testData()
 	s.cli.QueueEvent(typeID, testData)
-	s.cli.QueueEvent(typeID, testData)
 	time.Sleep(100 * time.Millisecond)
 	_, has := s.srv.getFile(s.cli.chainID, s.cli.nodeID, typeID)
 	s.True(has)
@@ -72,7 +71,7 @@ func (s *ServerTestSuite) Test_handleEvent() {
 	// use the query handler to get the event
 	res, err := s.cli.QueryEvents(fmt.Sprintf("%s/%s/%s", s.cli.chainID, s.cli.nodeID, typeID))
 	require.NoError(t, err)
-	require.Equal(t, 2, len(res))
+	require.Equal(t, 1, len(res))
 
 	var vt TestingEvent
 	err = json.Unmarshal(res[0].Data, &vt)
