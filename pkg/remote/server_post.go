@@ -2,7 +2,6 @@ package remote
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -16,7 +15,6 @@ func (s *Server) handleEvent(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&eventRequest)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Println("SERVER: failure to decode event request: ", err)
 		return
 	}
 
@@ -45,7 +43,6 @@ func (s *Server) handleBatch(w http.ResponseWriter, r *http.Request) {
 	var batchRequest BatchRequest
 	err := json.NewDecoder(r.Body).Decode(&batchRequest)
 	if err != nil {
-		fmt.Println("SERVER: failure to decode event request: ", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -72,13 +69,13 @@ func (s *Server) writeEvent(ev Event) error {
 		return err
 	}
 
-	return json.NewEncoder(f).Encode(ev)
+	return WriteJsonLinesFile(f, []Event{ev})
 }
 
+// todo: sort events by type and write in batches
 func (s *Server) writeBatch(br BatchRequest) error {
 	for _, ev := range br.Events {
 		err := s.writeEvent(ev)
-		fmt.Println("SERVER: wrote event: ", ev, " err: ", err)
 		if err != nil {
 			return err
 		}

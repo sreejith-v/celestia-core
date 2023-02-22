@@ -52,7 +52,7 @@ func startCMD() *cobra.Command {
 		},
 	}
 
-	command.Flags().String(listenFlag, "tcp//:0.0.0.0", "specify the listen address")
+	command.Flags().String(listenFlag, "0.0.0.0", "specify the listen address")
 	command.Flags().String(portFlag, "25570", "specify the port")
 	command.Flags().String(pathFlag, ".", "specify the path to the files")
 

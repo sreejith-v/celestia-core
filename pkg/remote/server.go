@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	batchMethod = "batch"
-	eventMethod = "event"
+	batchMethod     = "/batch"
+	eventMethod     = "/event"
+	getEventsMethod = "/get_events"
 )
 
 // Server is a simple json server that will write and serve events to files.
@@ -25,7 +26,7 @@ type Server struct {
 	mut *sync.RWMutex
 	// the server expects the files to be in the following format:
 	// <chainID>/<nodeID>/<type>
-	files map[string]map[string]map[string]*os.File
+	files map[string]map[string]map[string]*LabeledFile
 }
 
 func NewServer(dir string, logger log.Logger) *Server {
@@ -39,8 +40,9 @@ func NewServer(dir string, logger log.Logger) *Server {
 
 func (s *Server) Start(addr string) error {
 	defer s.Stop()
-	http.HandleFunc("/batch", s.handleBatch)
-	http.HandleFunc("/event", s.handleEvent)
+	http.HandleFunc(batchMethod, s.handleBatch)
+	http.HandleFunc(eventMethod, s.handleEvent)
+	http.HandleFunc(getEventsMethod, s.handleGetFiles)
 	return http.ListenAndServe(addr, nil)
 }
 
@@ -59,45 +61,45 @@ func (s *Server) Stop() {
 // GetFile attempts to fetch loaded file. If the file does not exist, then it
 // will be created. path is expected to be in the following format:
 // <chainID>/<nodeID>/<type>
-func (s *Server) GetFile(path string) (fs *os.File, err error) {
+//
+// TODO: pass the parameters as separate arguments instead of a path.
+func (s *Server) GetFile(path string) (lf *LabeledFile, err error) {
 	chainID, nodeID, typ, err := parseRelativePath(path)
 	if err != nil {
 		return nil, err
 	}
 
-	f, has := s.getFile(chainID, nodeID, typ)
+	lf, has := s.getFile(chainID, nodeID, typ)
 	if !has {
 		err = os.MkdirAll(filepath.Join(s.writeDir, chainID, nodeID), os.ModePerm)
 		if err != nil {
 			return nil, err
 		}
-		f, err = os.OpenFile(
-			filepath.Join(s.writeDir, chainID, nodeID, typ+".json"),
-			os.O_APPEND|os.O_CREATE|os.O_RDWR,
-			0644,
-		)
+
+		lf, err := OpenLabeledFile(filepath.Join(s.writeDir, chainID, nodeID, typ+".json"))
 		if err != nil {
 			return nil, err
 		}
+		lf.Label(chainID, nodeID, typ)
 		s.mut.Lock()
 		s.files = createPath(s.files, chainID, nodeID)
-		s.files[chainID][nodeID][typ] = f
+		s.files[chainID][nodeID][typ] = lf
 		s.mut.Unlock()
 	}
 
-	return f, nil
+	return lf, nil
 }
 
-func (s *Server) getFile(chainID, nodeID, typ string) (*os.File, bool) {
+func (s *Server) getFile(chainID, nodeID, typ string) (*LabeledFile, bool) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
 	f, has := s.files[chainID][nodeID][typ]
 	return f, has
 }
 
-func loadFiles(directory string) map[string]map[string]map[string]*os.File {
+func loadFiles(directory string) map[string]map[string]map[string]*LabeledFile {
 	// Walk the directory recursively and print out the relative file paths
-	files := make(map[string]map[string]map[string]*os.File)
+	files := make(map[string]map[string]map[string]*LabeledFile)
 	filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
@@ -107,9 +109,9 @@ func loadFiles(directory string) map[string]map[string]map[string]*os.File {
 				return nil
 			}
 
-			f, err := os.OpenFile(path, os.O_APPEND|os.O_RDWR, 0644)
+			lf, err := OpenLabeledFile(path)
 			if err != nil {
-				f.Close()
+				lf.Close()
 				return nil
 			}
 
@@ -120,23 +122,24 @@ func loadFiles(directory string) map[string]map[string]map[string]*os.File {
 
 			chainid, nodeID, typ, err := parseRelativePath(relativePath)
 			if err != nil {
-				f.Close()
+				lf.Close()
 				return nil
 			}
+			lf.Label(chainid, nodeID, typ)
 			files = createPath(files, chainid, nodeID)
-			files[chainid][nodeID][typ] = f
+			files[chainid][nodeID][typ] = lf
 		}
 		return nil
 	})
 	return files
 }
 
-func createPath(files map[string]map[string]map[string]*os.File, chainID, nodeID string) map[string]map[string]map[string]*os.File {
+func createPath(files map[string]map[string]map[string]*LabeledFile, chainID, nodeID string) map[string]map[string]map[string]*LabeledFile {
 	if _, has := files[chainID]; !has {
-		files[chainID] = make(map[string]map[string]*os.File)
+		files[chainID] = make(map[string]map[string]*LabeledFile)
 	}
 	if _, has := files[chainID][nodeID]; !has {
-		files[chainID][nodeID] = make(map[string]*os.File)
+		files[chainID][nodeID] = make(map[string]*LabeledFile)
 	}
 	return files
 }
@@ -150,7 +153,6 @@ func parseRelativePath(path string) (chainID, nodeID, typ string, err error) {
 	}
 	for _, p := range split {
 		if p == "" {
-			fmt.Println("SERVER: bad split", split, len(split), path)
 			return "", "", "", errors.New("empty path is invalid")
 		}
 	}

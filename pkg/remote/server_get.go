@@ -1,26 +1,26 @@
 package remote
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"os"
 )
 
 const (
-	queryChainID = "chainid"
-	queryNodeID  = "nodeid"
+	queryChainID = "chain_id"
+	queryNodeID  = "node_id"
 	queryType    = "type"
-	queryAll     = "*"
+	// QueryAll is a special string that can be used to query all files.
+	QueryAll = "*"
 )
 
-func (s *Server) QueryFiles(chainID, nodeID, typ string) (fs []*os.File, err error) {
+// QueryFiles returns a list of files that match the given query. It throws an
+// error if there are no files for a given query.
+func (s *Server) QueryFiles(chainID, nodeID, typ string) (fs []*LabeledFile, err error) {
 	s.mut.RLock()
 	defer s.mut.RUnlock()
 
-	if chainID == queryAll {
+	if chainID == QueryAll {
 		for _, i := range s.files {
 			for _, j := range i {
 				for _, f := range j {
@@ -36,7 +36,7 @@ func (s *Server) QueryFiles(chainID, nodeID, typ string) (fs []*os.File, err err
 		return nil, fmt.Errorf("chainID %s does not exist", chainID)
 	}
 
-	if nodeID == queryAll {
+	if nodeID == QueryAll {
 		for _, j := range chainIDRemaining {
 			for _, f := range j {
 				fs = append(fs, f)
@@ -50,7 +50,7 @@ func (s *Server) QueryFiles(chainID, nodeID, typ string) (fs []*os.File, err err
 		return nil, fmt.Errorf("nodeID %s does not exist", nodeID)
 	}
 
-	if typ == queryAll {
+	if typ == QueryAll {
 		for _, f := range nodeIDRemaining {
 			fs = append(fs, f)
 		}
@@ -67,7 +67,9 @@ func (s *Server) QueryFiles(chainID, nodeID, typ string) (fs []*os.File, err err
 	return fs, nil
 }
 
-func (s *Server) handleReadFiles(w http.ResponseWriter, r *http.Request) {
+// handleGetFiles handles the /get_events endpoint. It responds with a
+// QueryResponse filled with any events that match the given query.
+func (s *Server) handleGetFiles(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -81,17 +83,26 @@ func (s *Server) handleReadFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var events []string
+	var events []Event
 	for _, f := range fs {
-		evs, err := ReadJsonLinesFile[string](f)
+		evs, err := ReadJsonLinesFile[Event](f)
 		if err != nil {
 			w.Write(NewErrorResponse(err.Error()))
+			return
+		}
+		if len(evs) == 0 {
+			w.Write(NewErrorResponse(fmt.Sprintf("empty file: %s", qType)))
 			return
 		}
 		events = append(events, evs...)
 	}
 
-	rawEvents, err := json.MarshalIndent(events, "", "  ")
+	resp := QueryResponse{
+		Status: EventResponseStatusOK,
+		Events: events,
+	}
+
+	rawEvents, err := json.MarshalIndent(resp, "", "  ")
 	if err != nil {
 		w.Write(NewErrorResponse(err.Error()))
 		return
@@ -100,21 +111,4 @@ func (s *Server) handleReadFiles(w http.ResponseWriter, r *http.Request) {
 	s.logger.Info("read events", "events", len(events))
 
 	w.Write(rawEvents)
-}
-
-func ReadJsonLinesFile[T any](f *os.File) ([]T, error) {
-	// iterate over the file and decode each line into an event
-	s := bufio.NewScanner(f)
-	var events []T
-	for s.Scan() {
-		var ev T
-		if err := json.Unmarshal(s.Bytes(), &ev); err != nil {
-			log.Fatal(err)
-		}
-		events = append(events, ev)
-	}
-	if s.Err() != nil {
-		return nil, s.Err()
-	}
-	return events, nil
 }

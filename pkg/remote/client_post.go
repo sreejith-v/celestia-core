@@ -2,14 +2,44 @@ package remote
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 )
 
-func (c *Client) SendBatch(ctx context.Context, evs []Event) error {
+// QueryEvents queries the server for events using the given path. The format of
+// the path should be "chainID/nodeID/type". The server will return all events
+// that match that query.
+func (c *Client) QueryEvents(path string) ([]Event, error) {
+	q, err := NewQuery(path)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.sendRequest(http.MethodGet, c.CreateServerURL(getEventsMethod, q), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var qr QueryResponse
+	err = json.Unmarshal(resp, &qr)
+	if err != nil {
+		return nil, err
+	}
+
+	if qr.Status != EventResponseStatusOK {
+		return nil, fmt.Errorf("failure to get file from server: %s", qr.Error)
+	}
+
+	if len(qr.Events) == 0 {
+		return nil, fmt.Errorf("no events found for query: %s", path)
+	}
+
+	return qr.Events, nil
+}
+
+// SendBatch sends a batch of events to the server.
+func (c *Client) SendBatch(evs []Event) error {
 	br := BatchRequest{
 		NodeID:  c.nodeID,
 		ChainID: c.chainID,
@@ -18,20 +48,17 @@ func (c *Client) SendBatch(ctx context.Context, evs []Event) error {
 
 	rbr, err := json.Marshal(br)
 	if err != nil {
-		fmt.Println("marshal error: ", err)
 		return err
 	}
 
-	resp, err := c.sendRequest(http.MethodPost, c.CreateServerURL(batchMethod, ""), rbr)
+	resp, err := c.sendRequest(http.MethodPost, c.CreateServerURL(batchMethod, Query{}), rbr)
 	if err != nil {
-		fmt.Println("sedn request error: ", err)
 		return err
 	}
 
 	var gr GenericResponse
 	err = json.Unmarshal(resp, &gr)
 	if err != nil {
-		fmt.Println("1 unmarshal error: ", err, string(resp))
 		return err
 	}
 
