@@ -173,6 +173,7 @@ func MakeConfig(node *e2e.Node) (*config.Config, error) {
 	cfg.Instrumentation.PyroscopeTrace = node.PyroscopeTrace
 	cfg.Instrumentation.PyroscopeURL = node.PyroscopeURL
 	cfg.Instrumentation.PyroscopeProfileTypes = node.PyroscopeProfileTypes
+	cfg.Consensus.PeerGossipIntraloopSleepDuration = node.Testnet.PeerGossipIntraloopSleepDuration
 
 	switch node.ABCIProtocol {
 	case e2e.ProtocolUNIX:

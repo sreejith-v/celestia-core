@@ -6,6 +6,7 @@ initial_height = 1000
 initial_state = { initial01 = "a", initial02 = "b", initial03 = "c" }
 # The most common case (e.g. Cosmos SDK-based chains).
 abci_protocol = "builtin"
+peer_gossip_intraloop_sleep_duration = "50ms"
 
 [validators]
 validator01 = 100
@@ -62,7 +63,7 @@ database = "rocksdb"
 perturb = ["pause"]
 
 [node.validator05]
-start_at = 1005 # Becomes part of the validator set at 1010
+start_at = 1005                                      # Becomes part of the validator set at 1010
 seeds = ["seed02"]
 database = "cleveldb"
 fast_sync = "v0"
@@ -75,7 +76,13 @@ start_at = 1010
 mode = "full"
 # FIXME: should be v2, disabled due to flake
 fast_sync = "v0"
-persistent_peers = ["validator01", "validator02", "validator03", "validator04", "validator05"]
+persistent_peers = [
+    "validator01",
+    "validator02",
+    "validator03",
+    "validator04",
+    "validator05",
+]
 retain_blocks = 1
 perturb = ["restart"]
 
@@ -89,11 +96,11 @@ seeds = ["seed01"]
 perturb = ["restart"]
 
 [node.light01]
-mode= "light"
-start_at= 1005
+mode = "light"
+start_at = 1005
 persistent_peers = ["validator01", "validator02", "validator03"]
 
 [node.light02]
-mode= "light"
-start_at= 1015
+mode = "light"
+start_at = 1015
 persistent_peers = ["validator04", "full01", "validator05"]

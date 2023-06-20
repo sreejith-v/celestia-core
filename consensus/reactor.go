@@ -13,6 +13,7 @@ import (
 	cmtevents "github.com/tendermint/tendermint/libs/events"
 	cmtjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/libs/log"
+	cmtrand "github.com/tendermint/tendermint/libs/rand"
 	cmtsync "github.com/tendermint/tendermint/libs/sync"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/pkg/trace"
@@ -282,6 +283,8 @@ func (conR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			ps.ApplyNewValidBlockMessage(msg)
 		case *HasVoteMessage:
 			ps.ApplyHasVoteMessage(msg)
+		case *HasProposalBlockPartMessage:
+			ps.ApplyHasProposalBlockPartMessage(msg)
 		case *VoteSetMaj23Message:
 			cs := conR.conS
 			cs.mtx.Lock()
@@ -447,21 +450,28 @@ func (conR *Reactor) subscribeToBroadcastEvents() {
 		func(data cmtevents.EventData) {
 			conR.broadcastNewRoundStepMessage(data.(*cstypes.RoundState))
 		}); err != nil {
-		conR.Logger.Error("Error adding listener for events", "err", err)
+		conR.Logger.Error("Error adding listener for events (NewRoundStep)", "err", err)
 	}
 
 	if err := conR.conS.evsw.AddListenerForEvent(subscriber, types.EventValidBlock,
 		func(data cmtevents.EventData) {
 			conR.broadcastNewValidBlockMessage(data.(*cstypes.RoundState))
 		}); err != nil {
-		conR.Logger.Error("Error adding listener for events", "err", err)
+		conR.Logger.Error("Error adding listener for events (ValidBlock)", "err", err)
 	}
 
 	if err := conR.conS.evsw.AddListenerForEvent(subscriber, types.EventVote,
 		func(data cmtevents.EventData) {
 			conR.broadcastHasVoteMessage(data.(*types.Vote))
 		}); err != nil {
-		conR.Logger.Error("Error adding listener for events", "err", err)
+		conR.Logger.Error("Error adding listener for events (Vote)", "err", err)
+	}
+
+	if err := conR.conS.evsw.AddListenerForEvent(subscriber, types.EventProposalBlockPart,
+		func(data cmtevents.EventData) {
+			conR.broadcastHasProposalBlockPartMessage(data.(*BlockPartMessage))
+		}); err != nil {
+		conR.Logger.Error("Error adding listener for events (ProposalBlockPart)", "err", err)
 	}
 
 }
@@ -530,6 +540,19 @@ func (conR *Reactor) broadcastHasVoteMessage(vote *types.Vote) {
 	*/
 }
 
+// Broadcasts HasProposalBlockPartMessage to peers that care.
+func (conR *Reactor) broadcastHasProposalBlockPartMessage(partMsg *BlockPartMessage) {
+	msg := &cmtcons.HasProposalBlockPart{
+		Height: partMsg.Height,
+		Round:  partMsg.Round,
+		Index:  int32(partMsg.Part.Index),
+	}
+	conR.Switch.BroadcastEnvelope(p2p.Envelope{
+		ChannelID: StateChannel,
+		Message:   msg,
+	})
+}
+
 func makeRoundStepMessage(rs *cstypes.RoundState) (nrsMsg *cmtcons.NewRoundStep) {
 	nrsMsg = &cmtcons.NewRoundStep{
 		Height:                rs.Height,
@@ -578,6 +601,14 @@ OUTER_LOOP:
 		// Manage disconnects from self or peer.
 		if !peer.IsRunning() || !conR.IsRunning() {
 			return
+		}
+
+		// sleep random amount to give reactor a chance to receive HasProposalBlockPart messages
+		// so we can reduce the amount of redundant block parts we send
+		if conR.conS.config.PeerGossipIntraloopSleepDuration > 0 {
+			// the config sets an upper bound for how long we sleep.
+			randDuration := cmtrand.Int63n(int64(conR.conS.config.PeerGossipIntraloopSleepDuration))
+			time.Sleep(time.Duration(randDuration))
 		}
 
 		rs := conR.getRoundState()
@@ -739,10 +770,20 @@ func (conR *Reactor) gossipVotesRoutine(peer p2p.Peer, ps *PeerState) {
 
 OUTER_LOOP:
 	for {
+
 		// Manage disconnects from self or peer.
 		if !peer.IsRunning() || !conR.IsRunning() {
 			return
 		}
+
+		// sleep random amount to give reactor a chance to receive HasVote messages
+		// so we can reduce the amount of redundant votes we send
+		if conR.conS.config.PeerGossipIntraloopSleepDuration > 0 {
+			// the config sets an upper bound for how long we sleep.
+			randDuration := cmtrand.Int63n(int64(conR.conS.config.PeerGossipIntraloopSleepDuration))
+			time.Sleep(time.Duration(randDuration))
+		}
+
 		rs := conR.getRoundState()
 		prs := ps.GetRoundState()
 
@@ -1175,6 +1216,17 @@ func (ps *PeerState) SetHasProposalBlockPart(height int64, round int32, index in
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
+	ps.setHasProposalBlockPart(height, round, index)
+}
+
+func (ps *PeerState) setHasProposalBlockPart(height int64, round int32, index int) {
+	ps.logger.Debug("setHasProposalBlockPart",
+		"peerH/R",
+		log.NewLazySprintf("%d/%d", ps.PRS.Height, ps.PRS.Round),
+		"H/R",
+		log.NewLazySprintf("%d/%d", height, round),
+		"index", index)
+
 	if ps.PRS.Height != height || ps.PRS.Round != round {
 		return
 	}
@@ -1498,6 +1550,18 @@ func (ps *PeerState) ApplyHasVoteMessage(msg *HasVoteMessage) {
 	ps.setHasVote(msg.Height, msg.Round, msg.Type, msg.Index)
 }
 
+// ApplyHasProposalBlockPartMessage updates the peer state for the new block part.
+func (ps *PeerState) ApplyHasProposalBlockPartMessage(msg *HasProposalBlockPartMessage) {
+	ps.mtx.Lock()
+	defer ps.mtx.Unlock()
+
+	if ps.PRS.Height != msg.Height {
+		return
+	}
+
+	ps.setHasProposalBlockPart(msg.Height, msg.Round, int(msg.Index))
+}
+
 // ApplyVoteSetBitsMessage updates the peer state for the bit-array of votes
 // it claims to have for the corresponding BlockID.
 // `ourVotes` is a BitArray of votes we have for msg.BlockID
@@ -1555,6 +1619,7 @@ func init() {
 	cmtjson.RegisterType(&BlockPartMessage{}, "tendermint/BlockPart")
 	cmtjson.RegisterType(&VoteMessage{}, "tendermint/Vote")
 	cmtjson.RegisterType(&HasVoteMessage{}, "tendermint/HasVote")
+	cmtjson.RegisterType(&HasProposalBlockPartMessage{}, "tendermint/HasProposalBlockPart")
 	cmtjson.RegisterType(&VoteSetMaj23Message{}, "tendermint/VoteSetMaj23")
 	cmtjson.RegisterType(&VoteSetBitsMessage{}, "tendermint/VoteSetBits")
 }
@@ -1854,3 +1919,29 @@ func (m *VoteSetBitsMessage) String() string {
 }
 
 //-------------------------------------
+
+// HasProposalBlockPartMessage is sent to indicate that a particular block part has been received.
+type HasProposalBlockPartMessage struct {
+	Height int64
+	Round  int32
+	Index  int32
+}
+
+// ValidateBasic performs basic validation.
+func (m *HasProposalBlockPartMessage) ValidateBasic() error {
+	if m.Height < 1 {
+		return errors.New("invalid Height (< 1)")
+	}
+	if m.Round < 0 {
+		return errors.New("negative Round")
+	}
+	if m.Index < 0 {
+		return errors.New("negative Index")
+	}
+	return nil
+}
+
+// String returns a string representation.
+func (m *HasProposalBlockPartMessage) String() string {
+	return fmt.Sprintf("[HasProposalBlockPart PI:%v HR:{%v/%02d}]", m.Index, m.Height, m.Round)
+}
