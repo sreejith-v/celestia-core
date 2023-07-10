@@ -548,7 +548,7 @@ func (cs *State) scheduleRound0(rs *cstypes.RoundState) {
 	if rs.StartTime.Before(cmttime.Now()) {
 		cs.Logger.Error("scheduleRound0: Start time is in the past", "now", cmttime.Now(), "startTime", rs.StartTime, "duration", sleepDuration.Milliseconds())
 	}
-	cs.Logger.Info("scheduleRound0 sleeping... times:", "now", cmttime.Now().Unix(), "startTime", rs.StartTime.Unix(), "duration", sleepDuration.Milliseconds())
+	cs.Logger.Info("scheduleRound0 sleeping... times:", "now", cmttime.Now().UnixMilli(), "startTime", rs.StartTime.UnixMilli(), "duration", sleepDuration.Milliseconds())
 	cs.scheduleTimeout(sleepDuration, rs.Height, 0, cstypes.RoundStepNewHeight)
 }
 
@@ -673,7 +673,9 @@ func (cs *State) updateToState(state sm.State) {
 		// states last block time which is the genesis time.
 		cs.StartTime = state.LastBlockTime
 	} else {
-		cs.StartTime = cs.config.NextStartTime(cs.StartTime)
+		nst := cs.config.NextStartTime(cs.StartTime)
+		cs.Logger.Info("setting start time", "next_start_time", nst.UnixMilli())
+		cs.StartTime = nst
 	}
 
 	cs.Validators = validators
