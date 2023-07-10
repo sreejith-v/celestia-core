@@ -544,12 +544,17 @@ func (cs *State) updateRoundStep(round int32, step cstypes.RoundStepType) {
 // enterNewRound(height, 0) at cs.StartTime.
 func (cs *State) scheduleRound0(rs *cstypes.RoundState) {
 	// cs.Logger.Info("scheduleRound0", "now", cmttime.Now(), "startTime", cs.StartTime)
-	sleepDuration := rs.StartTime.Sub(cmttime.Now())
+	sleepDuration := rs.StartTime.Sub(cmttime.Now()) + time.Millisecond*1
+	if rs.StartTime.Before(cmttime.Now()) {
+		cs.Logger.Error("scheduleRound0: Start time is in the past", "now", cmttime.Now(), "startTime", rs.StartTime, "duration", sleepDuration.Milliseconds())
+	}
+	cs.Logger.Info("scheduleRound0 sleeping... times:", "now", cmttime.Now().Unix(), "startTime", rs.StartTime.Unix(), "duration", sleepDuration.Milliseconds())
 	cs.scheduleTimeout(sleepDuration, rs.Height, 0, cstypes.RoundStepNewHeight)
 }
 
 // Attempt to schedule a timeout (by sending timeoutInfo on the tickChan)
 func (cs *State) scheduleTimeout(duration time.Duration, height int64, round int32, step cstypes.RoundStepType) {
+	cs.Logger.Info("--- scheduleTimeout", "duration", duration, "height", height, "round", round, "step", step.String())
 	cs.timeoutTicker.ScheduleTimeout(timeoutInfo{duration, height, round, step})
 }
 
@@ -762,6 +767,7 @@ func (cs *State) receiveRoutine(maxSteps int) {
 
 		select {
 		case <-cs.txNotifier.TxsAvailable():
+			cs.Logger.Info("new txs available; entering new round", "height", rs.Height, "round", rs.Round)
 			cs.handleTxsAvailable()
 
 		case mi = <-cs.peerMsgQueue:
@@ -968,6 +974,7 @@ func (cs *State) handleTxsAvailable() {
 
 		// +1ms to ensure RoundStepNewRound timeout always happens after RoundStepNewHeight
 		timeoutCommit := cs.StartTime.Sub(cmttime.Now()) + 1*time.Millisecond
+		cs.Logger.Info("*** entering new round with +1ms timeoutCommit", "timeout_commit", timeoutCommit.Milliseconds())
 		cs.scheduleTimeout(timeoutCommit, cs.Height, 0, cstypes.RoundStepNewRound)
 
 	case cstypes.RoundStepNewRound: // after timeoutCommit
