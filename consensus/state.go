@@ -545,16 +545,13 @@ func (cs *State) updateRoundStep(round int32, step cstypes.RoundStepType) {
 func (cs *State) scheduleRound0(rs *cstypes.RoundState) {
 	// cs.Logger.Info("scheduleRound0", "now", cmttime.Now(), "startTime", cs.StartTime)
 	sleepDuration := rs.StartTime.Sub(cmttime.Now()) + time.Millisecond*1
-	if rs.StartTime.Before(cmttime.Now()) {
-		cs.Logger.Error("scheduleRound0: Start time is in the past", "now", cmttime.Now(), "startTime", rs.StartTime, "duration", sleepDuration.Milliseconds())
-	}
-	cs.Logger.Info("scheduleRound0 sleeping... times:", "now", cmttime.Now().UnixMilli(), "startTime", rs.StartTime.UnixMilli(), "duration", sleepDuration.Milliseconds())
+	cs.Logger.Info("scheduling next height sleeping:", "duration", sleepDuration.Milliseconds())
 	cs.scheduleTimeout(sleepDuration, rs.Height, 0, cstypes.RoundStepNewHeight)
 }
 
 // Attempt to schedule a timeout (by sending timeoutInfo on the tickChan)
 func (cs *State) scheduleTimeout(duration time.Duration, height int64, round int32, step cstypes.RoundStepType) {
-	cs.Logger.Info("--- scheduleTimeout", "duration", duration, "height", height, "round", round, "step", step.String())
+	cs.Logger.Info("scheduleTimeout", "duration", duration, "height", height, "round", round, "step", step.String())
 	cs.timeoutTicker.ScheduleTimeout(timeoutInfo{duration, height, round, step})
 }
 
@@ -673,8 +670,9 @@ func (cs *State) updateToState(state sm.State) {
 		// states last block time which is the genesis time.
 		cs.StartTime = state.LastBlockTime
 	} else {
-		nst := cs.config.NextStartTime(cs.StartTime)
-		cs.Logger.Info("setting start time", "next_start_time", nst.UnixMilli())
+		nst := cs.config.NextStartTime(cs.state.LastBlockTime)
+		now := cmttime.Now()
+		cs.Logger.Info("setting start time", "next_start_time", nst.UnixMilli(), "time_since_last_block", now.Sub(cs.state.LastBlockTime).Milliseconds())
 		cs.StartTime = nst
 	}
 
