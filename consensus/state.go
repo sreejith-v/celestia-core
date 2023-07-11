@@ -544,8 +544,15 @@ func (cs *State) updateRoundStep(round int32, step cstypes.RoundStepType) {
 // enterNewRound(height, 0) at cs.StartTime.
 func (cs *State) scheduleRound0(rs *cstypes.RoundState) {
 	// cs.Logger.Info("scheduleRound0", "now", cmttime.Now(), "startTime", cs.StartTime)
-	sleepDuration := rs.StartTime.Sub(cmttime.Now()) + time.Millisecond*1
+	sleepDuration := rs.StartTime.Sub(cmttime.Now())
 	cs.Logger.Info("scheduling next height sleeping:", "duration", sleepDuration.Milliseconds())
+	// bound the sleep duration to be within 3 and 12 seconds
+	if sleepDuration < 3*time.Second {
+		sleepDuration = 3 * time.Second
+	} else if sleepDuration > 12*time.Second {
+		sleepDuration = 12 * time.Second
+	}
+
 	cs.scheduleTimeout(sleepDuration, rs.Height, 0, cstypes.RoundStepNewHeight)
 }
 
@@ -670,7 +677,7 @@ func (cs *State) updateToState(state sm.State) {
 		// states last block time which is the genesis time.
 		cs.StartTime = state.LastBlockTime
 	} else {
-		nst := cs.config.NextStartTime(cs.state.LastBlockTime)
+		nst := cs.config.NextStartTime(cs.StartTime)
 		now := cmttime.Now()
 		cs.Logger.Info("setting start time", "next_start_time", nst.UnixMilli(), "time_since_last_block", now.Sub(cs.state.LastBlockTime).Milliseconds())
 		cs.StartTime = nst
