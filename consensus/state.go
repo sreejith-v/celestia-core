@@ -545,11 +545,13 @@ func (cs *State) updateRoundStep(round int32, step cstypes.RoundStepType) {
 func (cs *State) scheduleRound0(rs *cstypes.RoundState) {
 	// cs.Logger.Info("scheduleRound0", "now", cmttime.Now(), "startTime", cs.StartTime)
 	sleepDuration := rs.StartTime.Sub(cmttime.Now())
-	// bound the sleep duration to be within 3 and 12 seconds
-	if sleepDuration < 3*time.Second {
-		sleepDuration = 3 * time.Second
-	} else if sleepDuration > 12*time.Second {
-		sleepDuration = 12 * time.Second
+	// bound the sleep duration to be within 4 and 14 seconds
+	minSleepDuration := 4 * time.Second
+	maxSleepDuration := 14 * time.Second
+	if sleepDuration < minSleepDuration {
+		sleepDuration = minSleepDuration
+	} else if sleepDuration > maxSleepDuration {
+		sleepDuration = maxSleepDuration
 	}
 
 	cs.Logger.Info("scheduling next height sleeping:", "duration", sleepDuration.Milliseconds())
