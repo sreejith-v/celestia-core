@@ -683,7 +683,8 @@ func (cs *State) updateToState(state sm.State) {
 		// cs.StartTime = state.LastBlockTime.Add(timeoutCommit)
 		cs.StartTime = cs.config.Commit(cmttime.Now())
 	} else {
-		cs.StartTime = cs.config.Commit(cs.CommitTime)
+		d := NextHeightDelay(cs.state.LastBlockTime)
+		cs.StartTime = cs.CommitTime.Add(d)
 	}
 
 	cs.Validators = validators
@@ -705,6 +706,21 @@ func (cs *State) updateToState(state sm.State) {
 
 	// Finally, broadcast RoundState
 	cs.newStep()
+}
+
+func NextHeightDelay(lastBlockTime time.Time) time.Duration {
+	now := cmttime.Now()
+	duration := now.Sub(lastBlockTime)
+	maxDur := time.Second * 14
+	minDur := time.Second * 4
+	switch {
+	case duration > maxDur:
+		return maxDur
+	case duration < minDur:
+		return minDur
+	default:
+		return duration
+	}
 }
 
 func (cs *State) newStep() {
