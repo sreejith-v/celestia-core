@@ -545,14 +545,14 @@ func (cs *State) updateRoundStep(round int32, step cstypes.RoundStepType) {
 func (cs *State) scheduleRound0(rs *cstypes.RoundState) {
 	// cs.Logger.Info("scheduleRound0", "now", cmttime.Now(), "startTime", cs.StartTime)
 	sleepDuration := rs.StartTime.Sub(cmttime.Now())
-	// bound the sleep duration to be within 4 and 14 seconds
-	minSleepDuration := 4 * time.Second
-	maxSleepDuration := 14 * time.Second
-	if sleepDuration < minSleepDuration {
-		sleepDuration = minSleepDuration
-	} else if sleepDuration > maxSleepDuration {
-		sleepDuration = maxSleepDuration
-	}
+	// // bound the sleep duration to be within 4 and 14 seconds
+	// minSleepDuration := 4 * time.Second
+	// maxSleepDuration := 14 * time.Second
+	// if sleepDuration < minSleepDuration {
+	// 	sleepDuration = minSleepDuration
+	// } else if sleepDuration > maxSleepDuration {
+	// 	sleepDuration = maxSleepDuration
+	// }
 
 	cs.Logger.Info("scheduling next height sleeping:", "duration", sleepDuration.Milliseconds())
 
@@ -562,6 +562,9 @@ func (cs *State) scheduleRound0(rs *cstypes.RoundState) {
 // Attempt to schedule a timeout (by sending timeoutInfo on the tickChan)
 func (cs *State) scheduleTimeout(duration time.Duration, height int64, round int32, step cstypes.RoundStepType) {
 	cs.Logger.Info("scheduleTimeout", "duration", duration, "height", height, "round", round, "step", step.String())
+	cs.eventCollector.WritePoint("timeouts", map[string]interface{}{
+		"schedule_timeout": []interface{}{duration, height, round, step.String()},
+	})
 	cs.timeoutTicker.ScheduleTimeout(timeoutInfo{duration, height, round, step})
 }
 
@@ -683,8 +686,9 @@ func (cs *State) updateToState(state sm.State) {
 		// cs.StartTime = state.LastBlockTime.Add(timeoutCommit)
 		cs.StartTime = cs.config.Commit(cmttime.Now())
 	} else {
-		d := NextHeightDelay(cs.state.LastBlockTime)
-		cs.StartTime = cs.CommitTime.Add(d)
+		// d := NextHeightDelay(cs.state.LastBlockTime)
+		// cs.StartTime = cs.CommitTime.Add(d)
+		cs.StartTime = cs.config.Commit(cs.CommitTime)
 	}
 
 	cs.Validators = validators
@@ -711,12 +715,14 @@ func (cs *State) updateToState(state sm.State) {
 func NextHeightDelay(lastBlockTime time.Time) time.Duration {
 	now := cmttime.Now()
 	duration := now.Sub(lastBlockTime)
-	maxDur := time.Second * 14
+	goalDur := time.Second * 30 // two blocks back
+	remaining := goalDur - duration
+	maxDur := time.Second * 15
 	minDur := time.Second * 4
 	switch {
-	case duration > maxDur:
+	case remaining > maxDur:
 		return maxDur
-	case duration < minDur:
+	case remaining < minDur:
 		return minDur
 	default:
 		return duration
@@ -730,6 +736,10 @@ func (cs *State) newStep() {
 	}
 
 	cs.nSteps++
+
+	cs.eventCollector.WritePoint("round_state", map[string]interface{}{
+		"new_round": []interface{}{rs.Height, rs.Round, rs.Step},
+	})
 
 	// newStep is called by updateToState in NewState before the eventBus is set!
 	if cs.eventBus != nil {
@@ -2114,6 +2124,10 @@ func (cs *State) addVote(vote *types.Vote, peerID p2p.ID) (added bool, err error
 		return
 	}
 
+	cs.eventCollector.WritePoint("votes", map[string]interface{}{
+		"add_vote": []interface{}{height, cs.Round, cs.Step, vote.Type.String()},
+	})
+
 	if err := cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote}); err != nil {
 		return added, err
 	}
@@ -2317,6 +2331,9 @@ func (cs *State) signAddVote(msgType cmtproto.SignedMsgType, hash []byte, header
 	// TODO: pass pubKey to signVote
 	vote, err := cs.signVote(msgType, hash, header)
 	if err == nil {
+		cs.eventCollector.WritePoint("votes", map[string]interface{}{
+			"sign_vote": []interface{}{cs.Height, cs.Round, cs.Step, vote.Type.String()},
+		})
 		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, ""})
 		cs.Logger.Debug("signed and pushed vote", "height", cs.Height, "round", cs.Round, "vote", vote)
 		return vote
