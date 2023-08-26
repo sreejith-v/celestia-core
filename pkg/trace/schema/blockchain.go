@@ -10,6 +10,7 @@ import (
 func BlockchainTables() []string {
 	return []string{
 		BlocksyncCommsTable,
+		SyncStatsTable,
 	}
 }
 
