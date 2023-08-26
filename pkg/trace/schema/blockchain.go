@@ -18,12 +18,12 @@ const (
 	// BlocksyncCommsTable is the name of the table that stores requests and
 	// responses from the blockchain reactor.
 	//
-	// | time | peer | type |
+	// | time | peer | msg type | transfer type |
 	BlocksyncCommsTable = "blocksync_comms"
 
 	// BlocksyncCommsTypeFieldKey is the name of the field that stores the
 	// type of the message.
-	BlocksyncCommsTypeFieldKey = "type"
+	BlocksyncCommsTypeFieldKey = "msg_type"
 
 	// StatusRequestFieldValue is the value of the type field for a status
 	// request message.
@@ -50,9 +50,11 @@ func WriteBlocksyncComms(
 	client *trace.Client,
 	peer p2p.ID,
 	msgType string,
+	transferType string,
 ) {
 	client.WritePoint(BlocksyncCommsTable, map[string]interface{}{
 		PeerFieldKey:               peer,
 		BlocksyncCommsTypeFieldKey: msgType,
+		TransferTypeFieldKey:       transferType,
 	})
 }

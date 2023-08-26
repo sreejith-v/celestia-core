@@ -166,7 +166,7 @@ func (bcR *BlockchainReactor) AddPeer(peer p2p.Peer) {
 		},
 	}, bcR.Logger)
 	// it's OK if send fails. will try later in poolRoutine
-
+	schema.WriteBlocksyncComms(bcR.traceClient, peer.ID(), schema.StatusResponseFieldValue, schema.TransferTypeUpload)
 	// peer is added to the pool once we receive the first
 	// bcStatusResponseMessage from the peer and call pool.SetPeerRange
 }
@@ -188,12 +188,14 @@ func (bcR *BlockchainReactor) respondToPeer(msg *bcproto.BlockRequest,
 			bcR.Logger.Error("could not convert msg to protobuf", "err", err)
 			return false
 		}
+		schema.WriteBlocksyncComms(bcR.traceClient, src.ID(), schema.BlockResponseFieldValue, schema.TransferTypeUpload)
 		return p2p.TrySendEnvelopeShim(src, p2p.Envelope{ //nolint: staticcheck
 			ChannelID: BlockchainChannel,
 			Message:   &bcproto.BlockResponse{Block: bl},
 		}, bcR.Logger)
 	}
 
+	schema.WriteBlocksyncComms(bcR.traceClient, src.ID(), schema.NoBlockResponseFieldValue, schema.TransferTypeUpload)
 	return p2p.TrySendEnvelopeShim(src, p2p.Envelope{ //nolint: staticcheck
 		ChannelID: BlockchainChannel,
 		Message:   &bcproto.NoBlockResponse{Height: msg.Height},
@@ -212,7 +214,7 @@ func (bcR *BlockchainReactor) ReceiveEnvelope(e p2p.Envelope) {
 	switch msg := e.Message.(type) {
 	case *bcproto.BlockRequest:
 		bcR.respondToPeer(msg, e.Src)
-		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.BlockRequestFieldValue)
+		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.BlockRequestFieldValue, schema.TransferTypeDownload)
 	case *bcproto.BlockResponse:
 		bi, err := types.BlockFromProto(msg.Block)
 		if err != nil {
@@ -220,7 +222,7 @@ func (bcR *BlockchainReactor) ReceiveEnvelope(e p2p.Envelope) {
 			return
 		}
 		bcR.pool.AddBlock(e.Src.ID(), bi, msg.Block.Size())
-		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.BlockResponseFieldValue)
+		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.BlockResponseFieldValue, schema.TransferTypeDownload)
 	case *bcproto.StatusRequest:
 		// Send peer our state.
 		p2p.TrySendEnvelopeShim(e.Src, p2p.Envelope{ //nolint: staticcheck
@@ -230,14 +232,14 @@ func (bcR *BlockchainReactor) ReceiveEnvelope(e p2p.Envelope) {
 				Base:   bcR.store.Base(),
 			},
 		}, bcR.Logger)
-		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.StatusRequestFieldValue)
+		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.StatusRequestFieldValue, schema.TransferTypeDownload)
 	case *bcproto.StatusResponse:
 		// Got a peer status. Unverified.
 		bcR.pool.SetPeerRange(e.Src.ID(), msg.Base, msg.Height)
-		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.StatusResponseFieldValue)
+		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.StatusResponseFieldValue, schema.TransferTypeDownload)
 	case *bcproto.NoBlockResponse:
 		bcR.Logger.Debug("Peer does not have requested block", "peer", e.Src, "height", msg.Height)
-		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.NoBlockResponseFieldValue)
+		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.NoBlockResponseFieldValue, schema.TransferTypeDownload)
 	default:
 		bcR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 	}
@@ -299,6 +301,7 @@ func (bcR *BlockchainReactor) poolRoutine(stateSynced bool) {
 					ChannelID: BlockchainChannel,
 					Message:   &bcproto.BlockRequest{Height: request.Height},
 				}, bcR.Logger)
+				schema.WriteBlocksyncComms(bcR.traceClient, peer.ID(), schema.BlockRequestFieldValue, schema.TransferTypeUpload)
 				if !queued {
 					bcR.Logger.Debug("Send queue is full, drop block request", "peer", peer.ID(), "height", request.Height)
 				}
