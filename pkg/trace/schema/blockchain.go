@@ -58,3 +58,26 @@ func WriteBlocksyncComms(
 		TransferTypeFieldKey:       transferType,
 	})
 }
+
+const (
+	// SyncStatsTable is the name of the table that stores the blocksync stats.
+	// following schema:
+	//
+	// | time | height |
+	SyncStatsTable = "blocksync_stats"
+
+	// MaxPeerHeightFieldKey is the name of the field that stores the max peer
+	// height.
+	MaxPeerHeightFieldKey = "max_peer_height"
+)
+
+func WriteSyncStats(
+	client *trace.Client,
+	height int64,
+	mph int64,
+) {
+	client.WritePoint(SyncStatsTable, map[string]interface{}{
+		HeightFieldKey:        height,
+		MaxPeerHeightFieldKey: mph,
+	})
+}

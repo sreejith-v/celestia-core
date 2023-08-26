@@ -432,6 +432,8 @@ FOR_LOOP:
 			}
 			blocksSynced++
 
+			schema.WriteSyncStats(bcR.traceClient, first.Height, bcR.pool.maxPeerHeight)
+
 			if blocksSynced%100 == 0 {
 				lastRate = 0.9*lastRate + 0.1*(100/time.Since(lastHundred).Seconds())
 				bcR.Logger.Info("Fast Sync Rate", "height", bcR.pool.height,
