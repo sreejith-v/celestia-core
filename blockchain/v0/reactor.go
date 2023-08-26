@@ -10,6 +10,8 @@ import (
 	bc "github.com/tendermint/tendermint/blockchain"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/tendermint/tendermint/pkg/trace/schema"
 	bcproto "github.com/tendermint/tendermint/proto/tendermint/blockchain"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/store"
@@ -61,11 +63,13 @@ type BlockchainReactor struct {
 
 	requestsCh <-chan BlockRequest
 	errorsCh   <-chan peerError
+
+	traceClient *trace.Client
 }
 
 // NewBlockchainReactor returns new reactor instance.
 func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *store.BlockStore,
-	fastSync bool) *BlockchainReactor {
+	fastSync bool, traceClient *trace.Client) *BlockchainReactor {
 
 	if state.LastBlockHeight != store.Height() {
 		panic(fmt.Sprintf("state (%v) and store (%v) height mismatch", state.LastBlockHeight,
@@ -91,6 +95,7 @@ func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *st
 		fastSync:     fastSync,
 		requestsCh:   requestsCh,
 		errorsCh:     errorsCh,
+		traceClient:  traceClient,
 	}
 	bcR.BaseReactor = *p2p.NewBaseReactor("BlockchainReactor", bcR)
 	return bcR
@@ -207,6 +212,7 @@ func (bcR *BlockchainReactor) ReceiveEnvelope(e p2p.Envelope) {
 	switch msg := e.Message.(type) {
 	case *bcproto.BlockRequest:
 		bcR.respondToPeer(msg, e.Src)
+		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.BlockRequestFieldValue)
 	case *bcproto.BlockResponse:
 		bi, err := types.BlockFromProto(msg.Block)
 		if err != nil {
@@ -214,6 +220,7 @@ func (bcR *BlockchainReactor) ReceiveEnvelope(e p2p.Envelope) {
 			return
 		}
 		bcR.pool.AddBlock(e.Src.ID(), bi, msg.Block.Size())
+		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.BlockResponseFieldValue)
 	case *bcproto.StatusRequest:
 		// Send peer our state.
 		p2p.TrySendEnvelopeShim(e.Src, p2p.Envelope{ //nolint: staticcheck
@@ -223,11 +230,14 @@ func (bcR *BlockchainReactor) ReceiveEnvelope(e p2p.Envelope) {
 				Base:   bcR.store.Base(),
 			},
 		}, bcR.Logger)
+		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.StatusRequestFieldValue)
 	case *bcproto.StatusResponse:
 		// Got a peer status. Unverified.
 		bcR.pool.SetPeerRange(e.Src.ID(), msg.Base, msg.Height)
+		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.StatusResponseFieldValue)
 	case *bcproto.NoBlockResponse:
 		bcR.Logger.Debug("Peer does not have requested block", "peer", e.Src, "height", msg.Height)
+		schema.WriteBlocksyncComms(bcR.traceClient, e.Src.ID(), schema.NoBlockResponseFieldValue)
 	default:
 		bcR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 	}

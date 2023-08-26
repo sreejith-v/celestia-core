@@ -485,10 +485,11 @@ func createBlockchainReactor(config *cfg.Config,
 	blockStore *store.BlockStore,
 	fastSync bool,
 	logger log.Logger,
+	traceClient *trace.Client,
 ) (bcReactor p2p.Reactor, err error) {
 	switch config.FastSync.Version {
 	case "v0":
-		bcReactor = bcv0.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
+		bcReactor = bcv0.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync, traceClient)
 	case "v1":
 		bcReactor = bcv1.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
 	case "v2":
@@ -886,7 +887,7 @@ func NewNode(config *cfg.Config,
 	)
 
 	// Make BlockchainReactor. Don't start fast sync if we're doing a state sync first.
-	bcReactor, err := createBlockchainReactor(config, state, blockExec, blockStore, fastSync && !stateSync, logger)
+	bcReactor, err := createBlockchainReactor(config, state, blockExec, blockStore, fastSync && !stateSync, logger, influxdbClient)
 	if err != nil {
 		return nil, fmt.Errorf("could not create blockchain reactor: %w", err)
 	}
