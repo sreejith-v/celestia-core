@@ -10,6 +10,8 @@ import (
 	"github.com/tendermint/tendermint/libs/fail"
 	"github.com/tendermint/tendermint/libs/log"
 	mempl "github.com/tendermint/tendermint/mempool"
+	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/tendermint/tendermint/pkg/trace/schema"
 	cmtstate "github.com/tendermint/tendermint/proto/tendermint/state"
 	cmtproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/proxy"
@@ -39,7 +41,8 @@ type BlockExecutor struct {
 
 	logger log.Logger
 
-	metrics *Metrics
+	metrics     *Metrics
+	traceClient *trace.Client
 }
 
 type BlockExecutorOption func(executor *BlockExecutor)
@@ -47,6 +50,12 @@ type BlockExecutorOption func(executor *BlockExecutor)
 func BlockExecutorWithMetrics(metrics *Metrics) BlockExecutorOption {
 	return func(blockExec *BlockExecutor) {
 		blockExec.metrics = metrics
+	}
+}
+
+func BlockExecutorWithTraceClient(traceClient *trace.Client) BlockExecutorOption {
+	return func(blockExec *BlockExecutor) {
+		blockExec.traceClient = traceClient
 	}
 }
 
@@ -61,13 +70,14 @@ func NewBlockExecutor(
 	options ...BlockExecutorOption,
 ) *BlockExecutor {
 	res := &BlockExecutor{
-		store:    stateStore,
-		proxyApp: proxyApp,
-		eventBus: types.NopEventBus{},
-		mempool:  mempool,
-		evpool:   evpool,
-		logger:   logger,
-		metrics:  NopMetrics(),
+		store:       stateStore,
+		proxyApp:    proxyApp,
+		eventBus:    types.NopEventBus{},
+		mempool:     mempool,
+		evpool:      evpool,
+		logger:      logger,
+		metrics:     NopMetrics(),
+		traceClient: &trace.Client{},
 	}
 
 	for _, option := range options {
@@ -213,7 +223,9 @@ func (blockExec *BlockExecutor) ApplyBlock(
 		blockExec.logger, blockExec.proxyApp, block, blockExec.store, state.InitialHeight,
 	)
 	endTime := time.Now().UnixNano()
-	blockExec.metrics.BlockProcessingTime.Observe(float64(endTime-startTime) / 1000000)
+	executionTime := float64(endTime-startTime) / 1000000
+	blockExec.metrics.BlockProcessingTime.Observe(executionTime)
+	schema.WriteBlock(blockExec.traceClient, block, int64(executionTime))
 	if err != nil {
 		return state, 0, ErrProxyAppConn(err)
 	}

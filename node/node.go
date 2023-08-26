@@ -884,6 +884,7 @@ func NewNode(config *cfg.Config,
 		mempool,
 		evidencePool,
 		sm.BlockExecutorWithMetrics(smMetrics),
+		sm.BlockExecutorWithTraceClient(influxdbClient),
 	)
 
 	// Make BlockchainReactor. Don't start fast sync if we're doing a state sync first.

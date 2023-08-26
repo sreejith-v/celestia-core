@@ -10,6 +10,8 @@ func AllTables() []string {
 	tables := []string{}
 	tables = append(tables, MempoolTables()...)
 	tables = append(tables, ConsensusTables()...)
+	tables = append(tables, ExecutionTables()...)
+	tables = append(tables, BlockchainTables()...)
 	return tables
 }
 

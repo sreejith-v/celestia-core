@@ -1832,9 +1832,6 @@ func (cs *State) recordMetrics(height int64, block *types.Block) {
 
 	blockSize := block.Size()
 
-	// trace some metadata about the block
-	schema.WriteBlock(cs.traceClient, block, blockSize)
-
 	cs.metrics.NumTxs.Set(float64(len(block.Data.Txs)))
 	cs.metrics.TotalTxs.Add(float64(len(block.Data.Txs)))
 	cs.metrics.BlockSizeBytes.Set(float64(blockSize))
