@@ -15,7 +15,7 @@ func TestBlockMeta_ToProto(t *testing.T) {
 
 	bm := &BlockMeta{
 		BlockID:   bi,
-		BlockSize: 200,
+		BlockSize: 124 * int(BlockPartSizeBytes),
 		Header:    h,
 		NumTxs:    0,
 	}

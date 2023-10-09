@@ -2,32 +2,35 @@ package types
 
 import (
 	"testing"
+	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/merkle"
 	cmtrand "github.com/tendermint/tendermint/libs/rand"
 )
 
 const (
-	testPartSize = 65536 // 64KB ...  4096 // 4KB
+	testPartSize = BlockPartSizeBytes // 64KB ...  4096 // 4KB
 )
 
 func TestBasicPartSet(t *testing.T) {
 	// Construct random data of size partSize * 100
-	nParts := 100
-	data := cmtrand.Bytes(testPartSize * nParts)
+	nParts := uint32(100)
+	data := cmtrand.Bytes(int(testPartSize) * int(nParts))
 	partSet := NewPartSetFromData(data, testPartSize)
 
 	assert.NotEmpty(t, partSet.Hash())
-	assert.EqualValues(t, nParts, partSet.Total())
-	assert.Equal(t, nParts, partSet.BitArray().Size())
+	assert.EqualValues(t, nParts*2, partSet.Total())
+	assert.Equal(t, int(nParts*2), partSet.BitArray().Size())
 	assert.True(t, partSet.HashesTo(partSet.Hash()))
 	complete, err := partSet.IsComplete()
 	assert.True(t, complete)
 	require.NoError(t, err)
-	assert.EqualValues(t, nParts, partSet.Count())
+	assert.EqualValues(t, uint32(nParts*2), partSet.Count())
 	assert.EqualValues(t, testPartSize*nParts, partSet.ByteSize())
 
 	// Test adding parts to a new partSet.
@@ -52,7 +55,7 @@ func TestBasicPartSet(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, partSet.Hash(), partSet2.Hash())
-	assert.EqualValues(t, nParts, partSet2.Total())
+	assert.EqualValues(t, nParts*2, partSet2.Total())
 	assert.EqualValues(t, nParts*testPartSize, partSet.ByteSize())
 	complete, err = partSet2.IsComplete()
 	assert.True(t, complete)
@@ -67,7 +70,7 @@ func TestBasicPartSet(t *testing.T) {
 
 func TestWrongProof(t *testing.T) {
 	// Construct random data of size partSize * 100
-	data := cmtrand.Bytes(testPartSize * 100)
+	data := cmtrand.Bytes(int(testPartSize) * 100)
 	partSet := NewPartSetFromData(data, testPartSize)
 
 	// Test adding a part with wrong data.
@@ -102,7 +105,7 @@ func TestPartSetHeaderValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
-			data := cmtrand.Bytes(testPartSize * 100)
+			data := cmtrand.Bytes(int(testPartSize) * 100)
 			ps := NewPartSetFromData(data, testPartSize)
 			psHeader := ps.Header()
 			tc.malleatePartSetHeader(&psHeader)
@@ -131,7 +134,7 @@ func TestPartValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
-			data := cmtrand.Bytes(testPartSize * 100)
+			data := cmtrand.Bytes(int(testPartSize) * 100)
 			ps := NewPartSetFromData(data, testPartSize)
 			part := ps.GetPart(0)
 			tc.malleatePart(part)
@@ -194,6 +197,95 @@ func TestPartProtoBuf(t *testing.T) {
 		if tc.expPass {
 			require.NoError(t, err)
 			require.Equal(t, tc.ps1, p, tc.msg)
+		}
+	}
+}
+
+func TestPartSet_BlockBytes(t *testing.T) {
+	tests := []struct {
+		name     string
+		dataSize int
+	}{
+		{
+			name:     "data of size 1000 bytes",
+			dataSize: 1000,
+		},
+		{
+			name:     "data of size BlockPartSizeBytes + 1",
+			dataSize: int(BlockPartSizeBytes) + 1,
+		},
+		{
+			name:     "data of size BlockPartSizeBytes*2 + 1",
+			dataSize: int(BlockPartSizeBytes*2) + 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := cmtrand.Bytes(tt.dataSize)
+			partSet := NewPartSetFromData(data, testPartSize)
+			blockBytes, err := partSet.BlockBytes()
+			require.NoError(t, err)
+			assert.Equal(t, data, blockBytes)
+		})
+	}
+}
+
+func TestPartSet_LastPartPadding(t *testing.T) {
+	bzSize := 1000
+	data := cmtrand.Bytes(bzSize)
+	partSet := NewPartSetFromData(data, testPartSize)
+	assert.Equal(t, int(BlockPartSizeBytes-uint32(bzSize)), partSet.LastPartPadding())
+}
+
+func TestPartSet_ReadBlock(t *testing.T) {
+	h := cmtrand.Int63()
+	c1 := randCommit(time.Now())
+	b1 := MakeBlock(h, makeData([]Tx{Tx([]byte{1})}), &Commit{Signatures: []CommitSig{}}, []Evidence{})
+	b1.ProposerAddress = cmtrand.Bytes(crypto.AddressSize)
+
+	evidenceTime := time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
+	evi := NewMockDuplicateVoteEvidence(h, evidenceTime, "block-test-chain")
+	b2 := MakeBlock(h, makeData([]Tx{Tx([]byte{1})}), c1, []Evidence{evi})
+	b2.ProposerAddress = cmtrand.Bytes(crypto.AddressSize)
+	b2.Evidence.ByteSize()
+
+	b3 := MakeBlock(h, makeData([]Tx{}), c1, []Evidence{})
+	b3.ProposerAddress = cmtrand.Bytes(crypto.AddressSize)
+	testCases := []struct {
+		msg      string
+		b1       *Block
+		expPass  bool
+		expPass2 bool
+	}{
+		// {"nil block", nil, false, false},
+		{"b1", b1, true, true},
+		{"b2", b2, true, true},
+		{"b3", b3, true, true},
+	}
+	for _, tc := range testCases {
+		pb, err := tc.b1.ToProto()
+		if tc.expPass {
+			require.NoError(t, err, tc.msg)
+		} else {
+			require.Error(t, err, tc.msg)
+		}
+
+		// marshal the proto block
+		bz, err := proto.Marshal(pb)
+		require.NoError(t, err, tc.msg)
+
+		// create a part set from the block bytes
+		partSet := NewPartSetFromData(bz, testPartSize)
+		block, err := partSet.ReadBlock()
+		if tc.expPass2 {
+			require.NoError(t, err, tc.msg)
+			require.EqualValues(t, tc.b1.Header, block.Header, tc.msg)
+			require.EqualValues(t, tc.b1.Data, block.Data, tc.msg) // todo
+			require.EqualValues(t, tc.b1.Evidence.Evidence, block.Evidence.Evidence, tc.msg)
+			require.EqualValues(t, *tc.b1.LastCommit, *block.LastCommit, tc.msg)
+		} else {
+			require.Error(t, err, tc.msg)
 		}
 	}
 }

@@ -26,7 +26,7 @@ const (
 	// MaxHeaderBytes is a maximum header size.
 	// NOTE: Because app hash can be of arbitrary size, the header is therefore not
 	// capped in size and thus this number should be seen as a soft max
-	MaxHeaderBytes int64 = 626
+	MaxHeaderBytes int64 = 633
 
 	// MaxOverheadForBlock - maximum overhead to encode a block (up to
 	// MaxBlockSizeBytes in size) not including it's parts except Data.
@@ -599,8 +599,8 @@ const (
 )
 
 const (
-	// Max size of commit without any commitSigs -> 82 for BlockID, 8 for Height, 4 for Round.
-	MaxCommitOverheadBytes int64 = 94
+	// Max size of commit without any commitSigs -> 88 for BlockID, 8 for Height, 4 for Round.
+	MaxCommitOverheadBytes int64 = 102
 	// Commit sig size is made up of 64 bytes for the signature, 20 bytes for the address,
 	// 1 byte for the flag and 14 bytes for the timestamp
 	MaxCommitSigBytes int64 = 109
