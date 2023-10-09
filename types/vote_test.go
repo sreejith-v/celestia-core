@@ -244,7 +244,7 @@ func TestVoteValidateBasic(t *testing.T) {
 		{"Zero Height", func(v *Vote) { v.Height = 0 }, true},
 		{"Negative Round", func(v *Vote) { v.Round = -1 }, true},
 		{"Invalid BlockID", func(v *Vote) {
-			v.BlockID = BlockID{[]byte{1, 2, 3}, PartSetHeader{111, []byte("blockparts")}}
+			v.BlockID = BlockID{[]byte{1, 2, 3}, PartSetHeader{112, []byte("blockparts"), 112 * uint64(BlockPartSizeBytes)}}
 		}, true},
 		{"Invalid Address", func(v *Vote) { v.ValidatorAddress = make([]byte, 1) }, true},
 		{"Invalid ValidatorIndex", func(v *Vote) { v.ValidatorIndex = -1 }, true},

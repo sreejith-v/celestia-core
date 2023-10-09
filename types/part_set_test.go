@@ -1,7 +1,6 @@
 package types
 
 import (
-	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,7 +24,9 @@ func TestBasicPartSet(t *testing.T) {
 	assert.EqualValues(t, nParts, partSet.Total())
 	assert.Equal(t, nParts, partSet.BitArray().Size())
 	assert.True(t, partSet.HashesTo(partSet.Hash()))
-	assert.True(t, partSet.IsComplete())
+	complete, err := partSet.IsComplete()
+	assert.True(t, complete)
+	require.NoError(t, err)
 	assert.EqualValues(t, nParts, partSet.Count())
 	assert.EqualValues(t, testPartSize*nParts, partSet.ByteSize())
 
@@ -53,11 +54,12 @@ func TestBasicPartSet(t *testing.T) {
 	assert.Equal(t, partSet.Hash(), partSet2.Hash())
 	assert.EqualValues(t, nParts, partSet2.Total())
 	assert.EqualValues(t, nParts*testPartSize, partSet.ByteSize())
-	assert.True(t, partSet2.IsComplete())
+	complete, err = partSet2.IsComplete()
+	assert.True(t, complete)
+	require.NoError(t, err)
 
 	// Reconstruct data, assert that they are equal.
-	data2Reader := partSet2.GetReader()
-	data2, err := io.ReadAll(data2Reader)
+	data2, err := partSet2.BlockBytes()
 	require.NoError(t, err)
 
 	assert.Equal(t, data, data2)

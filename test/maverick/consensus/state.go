@@ -4,14 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"runtime/debug"
 	"sync"
 	"time"
-
-	"github.com/gogo/protobuf/proto"
 
 	cfg "github.com/tendermint/tendermint/config"
 	cmtcon "github.com/tendermint/tendermint/consensus"
@@ -1712,19 +1709,9 @@ func (cs *State) addProposalBlockPart(msg *cmtcon.BlockPartMessage, peerID p2p.I
 			cs.ProposalBlockParts.ByteSize(), cs.state.ConsensusParams.Block.MaxBytes,
 		)
 	}
-	if added && cs.ProposalBlockParts.IsComplete() {
-		bz, err := io.ReadAll(cs.ProposalBlockParts.GetReader())
-		if err != nil {
-			return added, err
-		}
-
-		pbb := new(cmtproto.Block)
-		err = proto.Unmarshal(bz, pbb)
-		if err != nil {
-			return added, err
-		}
-
-		block, err := types.BlockFromProto(pbb)
+	complete, _ := cs.ProposalBlockParts.IsComplete()
+	if added && complete {
+		block, err := cs.ProposalBlockParts.ReadBlock()
 		if err != nil {
 			return added, err
 		}

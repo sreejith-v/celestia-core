@@ -1084,16 +1084,7 @@ func makeBlockchainFromWAL(wal WAL) ([]*types.Block, []*types.Commit, error) {
 		case EndHeightMessage:
 			// if its not the first one, we have a full block
 			if thisBlockParts != nil {
-				pbb := new(cmtproto.Block)
-				bz, err := io.ReadAll(thisBlockParts.GetReader())
-				if err != nil {
-					panic(err)
-				}
-				err = proto.Unmarshal(bz, pbb)
-				if err != nil {
-					panic(err)
-				}
-				block, err := types.BlockFromProto(pbb)
+				block, err := thisBlockParts.ReadBlock()
 				if err != nil {
 					panic(err)
 				}
@@ -1123,17 +1114,8 @@ func makeBlockchainFromWAL(wal WAL) ([]*types.Block, []*types.Commit, error) {
 			}
 		}
 	}
-	// grab the last block too
-	bz, err := io.ReadAll(thisBlockParts.GetReader())
-	if err != nil {
-		panic(err)
-	}
-	pbb := new(cmtproto.Block)
-	err = proto.Unmarshal(bz, pbb)
-	if err != nil {
-		panic(err)
-	}
-	block, err := types.BlockFromProto(pbb)
+
+	block, err := thisBlockParts.ReadBlock()
 	if err != nil {
 		panic(err)
 	}

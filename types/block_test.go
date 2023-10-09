@@ -173,7 +173,7 @@ func makeBlockIDRandom() BlockID {
 	)
 	rand.Read(blockHash)   //nolint: errcheck // ignore errcheck for read
 	rand.Read(partSetHash) //nolint: errcheck // ignore errcheck for read
-	return BlockID{blockHash, PartSetHeader{123, partSetHash}}
+	return BlockID{blockHash, PartSetHeader{124, partSetHash, 124 * uint64(BlockPartSizeBytes)}}
 }
 
 func makeBlockID(hash []byte, partSetSize uint32, partSetHash []byte) BlockID {
@@ -186,8 +186,9 @@ func makeBlockID(hash []byte, partSetSize uint32, partSetHash []byte) BlockID {
 	return BlockID{
 		Hash: h,
 		PartSetHeader: PartSetHeader{
-			Total: partSetSize,
-			Hash:  psH,
+			Total:    partSetSize,
+			Hash:     psH,
+			ByteSize: uint64(testPartSize) * uint64(BlockPartSizeBytes),
 		},
 	}
 }
@@ -269,8 +270,9 @@ func TestMaxCommitBytes(t *testing.T) {
 		BlockID: BlockID{
 			Hash: tmhash.Sum([]byte("blockID_hash")),
 			PartSetHeader: PartSetHeader{
-				Total: math.MaxInt32,
-				Hash:  tmhash.Sum([]byte("blockID_part_set_header_hash")),
+				Total:    math.MaxInt32,
+				Hash:     tmhash.Sum([]byte("blockID_part_set_header_hash")),
+				ByteSize: uint64(math.MaxInt32) * uint64(BlockPartSizeBytes),
 			},
 		},
 		Signatures: []CommitSig{cs},
@@ -579,16 +581,18 @@ func TestBlockIDValidateBasic(t *testing.T) {
 	validBlockID := BlockID{
 		Hash: bytes.HexBytes{},
 		PartSetHeader: PartSetHeader{
-			Total: 1,
-			Hash:  bytes.HexBytes{},
+			Total:    2,
+			Hash:     bytes.HexBytes{},
+			ByteSize: uint64(2 * BlockPartSizeBytes),
 		},
 	}
 
 	invalidBlockID := BlockID{
 		Hash: []byte{0},
 		PartSetHeader: PartSetHeader{
-			Total: 1,
-			Hash:  []byte{0},
+			Total:    2,
+			Hash:     []byte{0},
+			ByteSize: uint64(2 * BlockPartSizeBytes),
 		},
 	}
 

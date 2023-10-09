@@ -176,7 +176,7 @@ func TestVoteSet_2_3MajorityRedux(t *testing.T) {
 
 	blockHash := crypto.CRandBytes(32)
 	blockPartsTotal := uint32(123)
-	blockPartSetHeader := PartSetHeader{blockPartsTotal, crypto.CRandBytes(32)}
+	blockPartSetHeader := PartSetHeader{blockPartsTotal, crypto.CRandBytes(32), uint64(blockPartsTotal) * uint64(BlockPartSizeBytes)}
 
 	voteProto := &Vote{
 		ValidatorAddress: nil, // NOTE: must fill in
@@ -220,7 +220,7 @@ func TestVoteSet_2_3MajorityRedux(t *testing.T) {
 		require.NoError(t, err)
 		addr := pubKey.Address()
 		vote := withValidator(voteProto, addr, 67)
-		blockPartsHeader := PartSetHeader{blockPartsTotal, crypto.CRandBytes(32)}
+		blockPartsHeader := PartSetHeader{blockPartsTotal, crypto.CRandBytes(32), uint64(blockPartsTotal) * uint64(BlockPartSizeBytes)}
 		_, err = signAddVote(privValidators[67], withBlockPartSetHeader(vote, blockPartsHeader), voteSet)
 		require.NoError(t, err)
 		blockID, ok = voteSet.TwoThirdsMajority()
@@ -234,7 +234,7 @@ func TestVoteSet_2_3MajorityRedux(t *testing.T) {
 		require.NoError(t, err)
 		addr := pubKey.Address()
 		vote := withValidator(voteProto, addr, 68)
-		blockPartsHeader := PartSetHeader{blockPartsTotal + 1, blockPartSetHeader.Hash}
+		blockPartsHeader := PartSetHeader{blockPartsTotal + 1, blockPartSetHeader.Hash, uint64(blockPartsTotal) * uint64(BlockPartSizeBytes)}
 		_, err = signAddVote(privValidators[68], withBlockPartSetHeader(vote, blockPartsHeader), voteSet)
 		require.NoError(t, err)
 		blockID, ok = voteSet.TwoThirdsMajority()
@@ -401,7 +401,7 @@ func TestVoteSet_Conflicts(t *testing.T) {
 func TestVoteSet_MakeCommit(t *testing.T) {
 	height, round := int64(1), int32(0)
 	voteSet, _, privValidators := randVoteSet(height, round, cmtproto.PrecommitType, 10, 1)
-	blockHash, blockPartSetHeader := crypto.CRandBytes(32), PartSetHeader{123, crypto.CRandBytes(32)}
+	blockHash, blockPartSetHeader := crypto.CRandBytes(32), PartSetHeader{123, crypto.CRandBytes(32), 123 * uint64(BlockPartSizeBytes)}
 
 	voteProto := &Vote{
 		ValidatorAddress: nil,
@@ -435,7 +435,7 @@ func TestVoteSet_MakeCommit(t *testing.T) {
 		addr := pv.Address()
 		vote := withValidator(voteProto, addr, 6)
 		vote = withBlockHash(vote, cmtrand.Bytes(32))
-		vote = withBlockPartSetHeader(vote, PartSetHeader{123, cmtrand.Bytes(32)})
+		vote = withBlockPartSetHeader(vote, PartSetHeader{123, cmtrand.Bytes(32), 123 * uint64(BlockPartSizeBytes)})
 
 		_, err = signAddVote(privValidators[6], vote, voteSet)
 		require.NoError(t, err)

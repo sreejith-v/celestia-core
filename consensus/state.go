@@ -4,13 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"runtime/debug"
 	"sort"
 	"time"
-
-	"github.com/gogo/protobuf/proto"
 
 	cfg "github.com/tendermint/tendermint/config"
 	cstypes "github.com/tendermint/tendermint/consensus/types"
@@ -848,9 +845,17 @@ func (cs *State) handleMsg(mi msgInfo) {
 		// RoundState with the updated copy or by emitting RoundState events in
 		// more places for routines depending on it to listen for.
 		cs.mtx.Unlock()
+		var complete bool
+		complete, err = cs.ProposalBlockParts.IsComplete()
+		cs.Logger.Error(
+			"Proposal is complete but is encoded incorrectly",
+			"height", cs.Height,
+			"cs_round", cs.Round,
+			"block_round", msg.Round,
+		)
 
 		cs.mtx.Lock()
-		if added && cs.ProposalBlockParts.IsComplete() {
+		if added && complete {
 			cs.handleCompleteProposal(msg.Height)
 		}
 		if added {
@@ -1925,19 +1930,12 @@ func (cs *State) addProposalBlockPart(msg *BlockPartMessage, peerID p2p.ID) (add
 			cs.ProposalBlockParts.ByteSize(), cs.state.ConsensusParams.Block.MaxBytes,
 		)
 	}
-	if added && cs.ProposalBlockParts.IsComplete() {
-		bz, err := io.ReadAll(cs.ProposalBlockParts.GetReader())
-		if err != nil {
-			return added, err
-		}
-
-		pbb := new(cmtproto.Block)
-		err = proto.Unmarshal(bz, pbb)
-		if err != nil {
-			return added, err
-		}
-
-		block, err := types.BlockFromProto(pbb)
+	complete, err := cs.ProposalBlockParts.IsComplete()
+	if err != nil {
+		return added, err
+	}
+	if added && complete {
+		block, err := cs.ProposalBlockParts.ReadBlock()
 		if err != nil {
 			return added, err
 		}
