@@ -21,6 +21,8 @@ import (
 	"github.com/tendermint/tendermint/libs/service"
 	cmtsync "github.com/tendermint/tendermint/libs/sync"
 	"github.com/tendermint/tendermint/libs/timer"
+	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/tendermint/tendermint/pkg/trace/schema"
 	tmp2p "github.com/tendermint/tendermint/proto/tendermint/p2p"
 )
 
@@ -134,6 +136,8 @@ type MConnConfig struct {
 
 	// Maximum wait time for pongs
 	PongTimeout time.Duration `mapstructure:"pong_timeout"`
+
+	TraceClient *trace.Client
 }
 
 // DefaultMConnConfig returns the default config.
@@ -145,6 +149,7 @@ func DefaultMConnConfig() MConnConfig {
 		FlushThrottle:           defaultFlushThrottle,
 		PingInterval:            defaultPingInterval,
 		PongTimeout:             defaultPongTimeout,
+		TraceClient:             &trace.Client{},
 	}
 }
 
@@ -194,7 +199,7 @@ func NewMConnectionWithConfig(
 	var channels = []*Channel{}
 
 	for _, desc := range chDescs {
-		channel := newChannel(mconn, *desc)
+		channel := newChannel(mconn, *desc, config.TraceClient)
 		channelsIdx[channel.desc.ID] = channel
 		channels = append(channels, channel)
 	}
@@ -550,6 +555,7 @@ func (c *MConnection) sendPacketMsg() bool {
 	}
 	c.sendMonitor.Update(_n)
 	c.flushTimer.Set()
+	schema.WriteChannelTrace(c.config.TraceClient, _n, schema.TransferTypeUpload, leastChannel.desc.ID)
 	return false
 }
 
@@ -646,6 +652,8 @@ FOR_LOOP:
 				c.Logger.Debug("Received bytes", "chID", channelID, "msgBytes", msgBytes)
 				// NOTE: This means the reactor.Receive runs in the same thread as the p2p recv routine
 				c.onReceive(channelID, msgBytes)
+				schema.WriteChannelTrace(c.config.TraceClient, _n, schema.TransferTypeDownload, channelID)
+
 			}
 		default:
 			err := fmt.Errorf("unknown message type %v", reflect.TypeOf(packet))
@@ -755,9 +763,11 @@ type Channel struct {
 	maxPacketMsgPayloadSize int
 
 	Logger log.Logger
+
+	traceClient *trace.Client
 }
 
-func newChannel(conn *MConnection, desc ChannelDescriptor) *Channel {
+func newChannel(conn *MConnection, desc ChannelDescriptor, traceClient *trace.Client) *Channel {
 	desc = desc.FillDefaults()
 	if desc.Priority <= 0 {
 		panic("Channel default priority must be a positive integer")
@@ -768,6 +778,7 @@ func newChannel(conn *MConnection, desc ChannelDescriptor) *Channel {
 		sendQueue:               make(chan []byte, desc.SendQueueCapacity),
 		recving:                 make([]byte, 0, desc.RecvBufferCapacity),
 		maxPacketMsgPayloadSize: conn.config.MaxPacketMsgPayloadSize,
+		traceClient:             traceClient,
 	}
 }
 

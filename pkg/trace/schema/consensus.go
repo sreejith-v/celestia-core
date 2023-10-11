@@ -1,8 +1,6 @@
 package schema
 
 import (
-	cstypes "github.com/tendermint/tendermint/consensus/types"
-	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/pkg/trace"
 	"github.com/tendermint/tendermint/types"
 )
@@ -35,11 +33,11 @@ const (
 // schema:
 //
 // | time | height | round | step |
-func WriteRoundState(client *trace.Client, height int64, round int32, step cstypes.RoundStepType) {
+func WriteRoundState(client *trace.Client, height int64, round int32, step string) {
 	client.WritePoint(RoundStateTable, map[string]interface{}{
 		HeightFieldKey: height,
 		RoundFieldKey:  round,
-		StepFieldKey:   step.String(),
+		StepFieldKey:   step,
 	})
 }
 
@@ -66,7 +64,7 @@ func WriteBlockPart(
 	client *trace.Client,
 	height int64,
 	round int32,
-	peer p2p.ID,
+	peer string,
 	index uint32,
 	transferType string,
 ) {

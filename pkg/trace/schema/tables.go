@@ -10,6 +10,7 @@ func AllTables() []string {
 	tables := []string{}
 	tables = append(tables, MempoolTables()...)
 	tables = append(tables, ConsensusTables()...)
+	tables = append(tables, P2PTables()...)
 	return tables
 }
 

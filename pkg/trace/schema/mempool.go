@@ -2,7 +2,6 @@ package schema
 
 import (
 	"github.com/tendermint/tendermint/libs/bytes"
-	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/pkg/trace"
 	"github.com/tendermint/tendermint/types"
 )
@@ -50,7 +49,7 @@ const (
 // schema:
 //
 // | time | peerID | tx size | tx hash | transfer type | mempool version |
-func WriteMempoolTx(client *trace.Client, peer p2p.ID, tx []byte, transferType, version string) {
+func WriteMempoolTx(client *trace.Client, peer string, tx []byte, transferType, version string) {
 	// this check is redundant to what is checked during WritePoint, although it
 	// is an optimization to avoid allocations from the map of fields.
 	if !client.IsCollecting(MempoolTxTable) {
@@ -100,7 +99,7 @@ const (
 // in the following schema:
 //
 // | time | peerID | transfer type | state update | mempool version |
-func WriteMempoolPeerState(client *trace.Client, peer p2p.ID, stateUpdate, transferType, version string) {
+func WriteMempoolPeerState(client *trace.Client, peer string, stateUpdate, transferType, version string) {
 	// this check is redundant to what is checked during WritePoint, although it
 	// is an optimization to avoid allocations from creating the map of fields.
 	if !client.IsCollecting(RoundStateTable) {

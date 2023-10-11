@@ -167,7 +167,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		for _, tx := range msg.Txs {
 			schema.WriteMempoolTx(
 				memR.traceClient,
-				e.Src.ID(),
+				string(e.Src.ID()),
 				tx,
 				schema.TransferTypeDownload,
 				schema.V1VersionFieldValue,
@@ -285,7 +285,7 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 			}
 			schema.WriteMempoolTx(
 				memR.traceClient,
-				peer.ID(),
+				string(peer.ID()),
 				memTx.tx,
 				schema.TransferTypeUpload,
 				schema.V1VersionFieldValue,

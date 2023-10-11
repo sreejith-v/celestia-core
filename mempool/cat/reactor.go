@@ -211,7 +211,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 	// flooded the network with transactions.
 	case *protomem.Txs:
 		for _, tx := range msg.Txs {
-			schema.WriteMempoolTx(memR.traceClient, e.Src.ID(), tx, schema.TransferTypeDownload, schema.CatVersionFieldValue)
+			schema.WriteMempoolTx(memR.traceClient, string(e.Src.ID()), tx, schema.TransferTypeDownload, schema.CatVersionFieldValue)
 		}
 		protoTxs := msg.GetTxs()
 		if len(protoTxs) == 0 {
@@ -257,7 +257,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 	case *protomem.SeenTx:
 		schema.WriteMempoolPeerState(
 			memR.traceClient,
-			e.Src.ID(),
+			string(e.Src.ID()),
 			schema.SeenTxStateUpdateFieldValue,
 			schema.TransferTypeDownload,
 			schema.CatVersionFieldValue,
@@ -291,7 +291,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 	case *protomem.WantTx:
 		schema.WriteMempoolPeerState(
 			memR.traceClient,
-			e.Src.ID(),
+			string(e.Src.ID()),
 			schema.WantTxStateUpdateFieldValue,
 			schema.TransferTypeDownload,
 			schema.CatVersionFieldValue,
@@ -307,7 +307,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			peerID := memR.ids.GetIDForPeer(e.Src.ID())
 			schema.WriteMempoolTx(
 				memR.traceClient,
-				e.Src.ID(),
+				string(e.Src.ID()),
 				msg.TxKey,
 				schema.TransferTypeUpload,
 				schema.CatVersionFieldValue,
