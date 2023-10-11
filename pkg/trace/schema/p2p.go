@@ -18,7 +18,7 @@ const (
 	// traces. Follows this schema:
 	//
 	// | time | bytes (sent or received) | transfer_type | channel_id |
-	ChannelTable = "channel_table"
+	ChannelTable = "p2p_channel"
 
 	// BytesFieldKey is the name of the field that stores the bytes sent or
 	// received. The value is an integer.
@@ -35,7 +35,7 @@ const (
 //
 // | time | bytes (sent or received) | transfer_type | channel_id |
 func WriteChannelTrace(client *trace.Client, bytes int, transferType string, channelID byte) {
-	client.WritePoint(RoundStateTable, map[string]interface{}{
+	client.WritePoint(ChannelTable, map[string]interface{}{
 		BytesFieldKey:        bytes,
 		TransferTypeFieldKey: transferType,
 		ChannelIDKey:         channelID,
