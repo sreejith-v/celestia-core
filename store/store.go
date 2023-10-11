@@ -96,8 +96,9 @@ func (bs *BlockStore) LoadBlock(height int64) *types.Block {
 		return nil
 	}
 
-	pbb := new(cmtproto.Block)
-	buf := []byte{}
+	// pbb := new(cmtproto.Block)
+	partSet := types.NewPartSetFromHeader(blockMeta.BlockID.PartSetHeader)
+	// TODO: optimize by only storing and loading half the block parts
 	for i := 0; i < int(blockMeta.BlockID.PartSetHeader.Total); i++ {
 		part := bs.LoadBlockPart(height, i)
 		// If the part is missing (e.g. since it has been deleted after we
@@ -105,18 +106,16 @@ func (bs *BlockStore) LoadBlock(height int64) *types.Block {
 		if part == nil {
 			return nil
 		}
-		buf = append(buf, part.Bytes...)
+		partSet.AddPart(part)
 	}
-	err := proto.Unmarshal(buf, pbb)
-	if err != nil {
-		// NOTE: The existence of meta should imply the existence of the
-		// block. So, make sure meta is only saved after blocks are saved.
-		panic(fmt.Sprintf("Error reading block: %v", err))
+	complete, err := partSet.IsComplete()
+	if !complete || err != nil {
+		panic(fmt.Sprintf("BlockStore has invalid block part set for height %d: %v", height, err))
 	}
 
-	block, err := types.BlockFromProto(pbb)
+	block, err := partSet.ReadBlock()
 	if err != nil {
-		panic(fmt.Errorf("error from proto block: %w", err))
+		panic(fmt.Sprintf("Error reading block: %v", err))
 	}
 
 	return block

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -37,7 +38,7 @@ func TestBasicPartSet(t *testing.T) {
 	partSet2 := NewPartSetFromHeader(partSet.Header())
 
 	assert.True(t, partSet2.HasHeader(partSet.Header()))
-	for i := 0; i < int(partSet.Total()); i++ {
+	for i := 0; i < int(partSet.Total()/2); i++ {
 		part := partSet.GetPart(i)
 		// t.Logf("\n%v", part)
 		added, err := partSet2.AddPart(part)
@@ -62,8 +63,11 @@ func TestBasicPartSet(t *testing.T) {
 	require.NoError(t, err)
 
 	// Reconstruct data, assert that they are equal.
+	fmt.Println("last parts padding 2", partSet2.lastPartNonPadding())
 	data2, err := partSet2.BlockBytes()
 	require.NoError(t, err)
+
+	require.Equal(t, len(data), len(data2))
 
 	assert.Equal(t, data, data2)
 }
@@ -232,15 +236,39 @@ func TestPartSet_BlockBytes(t *testing.T) {
 }
 
 func TestPartSet_LastPartPadding(t *testing.T) {
-	bzSize := 1000
-	data := cmtrand.Bytes(bzSize)
-	partSet := NewPartSetFromData(data, testPartSize)
-	assert.Equal(t, int(BlockPartSizeBytes-uint32(bzSize)), partSet.LastPartPadding())
+	type test struct {
+		name     string
+		dataSize int
+		expected int
+	}
+	tests := []test{
+		{
+			name:     "single part",
+			dataSize: 1000,
+			expected: 1000,
+		},
+		{
+			name:     "two parts flat",
+			dataSize: int(BlockPartSizeBytes) * 2,
+			expected: int(BlockPartSizeBytes),
+		},
+		{
+			name:     "two parts plus 1",
+			dataSize: int(BlockPartSizeBytes)*2 + 1,
+			expected: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		data := cmtrand.Bytes(tt.dataSize)
+		partSet := NewPartSetFromData(data, testPartSize)
+		assert.Equal(t, tt.expected, partSet.lastPartNonPadding())
+	}
 }
 
 func TestPartSet_ReadBlock(t *testing.T) {
 	h := cmtrand.Int63()
-	c1 := randCommit(time.Now())
+	c1 := randCommit(time.Now().UTC())
 	b1 := MakeBlock(h, makeData([]Tx{Tx([]byte{1})}), &Commit{Signatures: []CommitSig{}}, []Evidence{})
 	b1.ProposerAddress = cmtrand.Bytes(crypto.AddressSize)
 
@@ -288,4 +316,46 @@ func TestPartSet_ReadBlock(t *testing.T) {
 			require.Error(t, err, tc.msg)
 		}
 	}
+}
+
+func TestPartSet_Fill(t *testing.T) {
+	bz := cmtrand.Bytes(10_000_000)
+	partSet := NewPartSetFromData(bz, testPartSize)
+
+	// delete every other part starting at the second deletable part.
+	for i := 2; i < int(partSet.Total()); i += 2 {
+		partSet.parts[i] = nil
+		partSet.count -= 1
+	}
+
+	err := partSet.Fill()
+	require.NoError(t, err)
+
+	// assert that all parts are now non-nil.
+	for i := 0; i < int(partSet.Total()); i++ {
+		require.NotNil(t, partSet.parts[i], i)
+	}
+
+	// assert that the block bytes are the same.
+	blockBytes, err := partSet.BlockBytes()
+	require.NoError(t, err)
+	assert.Equal(t, bz, blockBytes)
+
+	// assert that the partset is complete.
+	complete, err := partSet.IsComplete()
+	require.NoError(t, err)
+	assert.True(t, complete)
+
+	// delete more than half of the parts.
+	for i := 0; i < int((partSet.Total()/2)+1); i++ {
+		partSet.parts[i] = nil
+		partSet.count -= 1
+	}
+
+	err = partSet.Fill()
+	require.Error(t, err)
+
+	complete, err = partSet.IsComplete()
+	require.NoError(t, err)
+	assert.False(t, complete)
 }

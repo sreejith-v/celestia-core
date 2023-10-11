@@ -218,17 +218,21 @@ func loadRawBlock(bs state.BlockStore, height int64) ([]byte, error) {
 		return nil, fmt.Errorf("no block found for height %d", height)
 	}
 
-	buf := []byte{}
+	// pbb := new(cmtproto.Block)
+	partSet := types.NewPartSetFromHeader(blockMeta.BlockID.PartSetHeader)
+	// TODO: optimize by only storing and loading half the block parts
 	for i := 0; i < int(blockMeta.BlockID.PartSetHeader.Total); i++ {
 		part := bs.LoadBlockPart(height, i)
-		// If the part is missing (e.g. since it has been deleted after we
-		// loaded the block meta) we consider the whole block to be missing.
 		if part == nil {
-			return nil, fmt.Errorf("missing block part at height %d part %d", height, i)
+			continue
 		}
-		buf = append(buf, part.Bytes...)
+		partSet.AddPart(part)
 	}
-	return buf, nil
+	complete, err := partSet.IsComplete()
+	if !complete || err != nil {
+		panic(fmt.Sprintf("BlockStore has invalid block part set for height %d: %v", height, err))
+	}
+	return partSet.BlockBytes()
 }
 
 // TxSearchMatchEvents allows you to query for multiple transactions results and match the

@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime/debug"
 	"sort"
+	"sync"
 	"time"
 
 	cfg "github.com/tendermint/tendermint/config"
@@ -19,7 +20,6 @@ import (
 	cmtmath "github.com/tendermint/tendermint/libs/math"
 	cmtos "github.com/tendermint/tendermint/libs/os"
 	"github.com/tendermint/tendermint/libs/service"
-	cmtsync "github.com/tendermint/tendermint/libs/sync"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/pkg/trace"
 	"github.com/tendermint/tendermint/pkg/trace/schema"
@@ -95,7 +95,7 @@ type State struct {
 	evpool evidencePool
 
 	// internal state
-	mtx cmtsync.RWMutex
+	mtx sync.RWMutex
 	cstypes.RoundState
 	state sm.State // State until height-1.
 	// privValidator pubkey, memoized for the duration of one block
@@ -845,16 +845,20 @@ func (cs *State) handleMsg(mi msgInfo) {
 		// RoundState with the updated copy or by emitting RoundState events in
 		// more places for routines depending on it to listen for.
 		cs.mtx.Unlock()
-		var complete bool
-		complete, err = cs.ProposalBlockParts.IsComplete()
-		cs.Logger.Error(
-			"Proposal is complete but is encoded incorrectly",
-			"height", cs.Height,
-			"cs_round", cs.Round,
-			"block_round", msg.Round,
-		)
 
 		cs.mtx.Lock()
+
+		complete, isCompleteErr := cs.ProposalBlockParts.IsComplete()
+		if isCompleteErr != nil {
+			cs.Logger.Error(
+				"Proposal might be complete but is encoded incorrectly",
+				"height", cs.Height,
+				"cs_round", cs.Round,
+				"block_round", msg.Round,
+			)
+			err = isCompleteErr
+		}
+
 		if added && complete {
 			cs.handleCompleteProposal(msg.Height)
 		}

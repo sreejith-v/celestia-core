@@ -26,7 +26,7 @@ const (
 	// MaxHeaderBytes is a maximum header size.
 	// NOTE: Because app hash can be of arbitrary size, the header is therefore not
 	// capped in size and thus this number should be seen as a soft max
-	MaxHeaderBytes int64 = 633
+	MaxHeaderBytes int64 = 632
 
 	// MaxOverheadForBlock - maximum overhead to encode a block (up to
 	// MaxBlockSizeBytes in size) not including it's parts except Data.

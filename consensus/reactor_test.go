@@ -370,7 +370,7 @@ func TestReactorRecordsVotesAndBlockParts(t *testing.T) {
 }
 
 //-------------------------------------------------------------
-// ensure we can make blocks despite cycling a validator set
+// ensure we can make blocks despite cycling a validator `set`
 
 func TestReactorVotingPowerChange(t *testing.T) {
 	nVals := 4
@@ -481,6 +481,8 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 		<-blocksSubs[j].Out()
 	}, css)
 
+	fmt.Println("made it past the first block")
+
 	//---------------------------------------------------------------------------
 	logger.Info("---------------------------- Testing adding one validator")
 
@@ -495,13 +497,19 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 	// send newValTx to change vals in block 3
 	waitForAndValidateBlock(t, nPeers, activeVals, blocksSubs, css, newValidatorTx1)
 
+	fmt.Println("made it past block 2")
+
 	// wait till everyone makes block 3.
 	// it includes the commit for block 2, which is by the original validator set
 	waitForAndValidateBlockWithTx(t, nPeers, activeVals, blocksSubs, css, newValidatorTx1)
 
+	fmt.Println("made it past block 3")
+
 	// wait till everyone makes block 4.
 	// it includes the commit for block 3, which is by the original validator set
 	waitForAndValidateBlock(t, nPeers, activeVals, blocksSubs, css)
+
+	fmt.Println("made it past block 4")
 
 	// the commits for block 4 should be with the updated validator set
 	activeVals[string(newValidatorPubKey1.Address())] = struct{}{}
@@ -599,6 +607,7 @@ func waitForAndValidateBlock(
 		css[j].Logger.Debug("waitForAndValidateBlock")
 		msg := <-blocksSubs[j].Out()
 		newBlock := msg.Data().(types.EventDataNewBlock).Block
+		fmt.Println("got block ----", newBlock.Height)
 		css[j].Logger.Debug("waitForAndValidateBlock: Got block", "height", newBlock.Height)
 		err := validateBlock(newBlock, activeVals)
 		assert.Nil(t, err)

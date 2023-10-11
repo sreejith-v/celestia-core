@@ -317,6 +317,7 @@ func (ps *PartSet) AddPart(part *Part) (bool, error) {
 	if ps == nil {
 		return false, nil
 	}
+	fmt.Println("adding part", part.Index)
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
@@ -354,8 +355,10 @@ func (ps *PartSet) IsComplete() (bool, error) {
 		if err != nil {
 			return false, err
 		}
+		fmt.Println("part set is complete", ps.count, ps.total)
 		return true, nil
 	}
+	fmt.Println("part set is incomplete")
 	return false, nil
 }
 
@@ -373,6 +376,9 @@ func (ps *PartSet) Fill() error {
 	// extract the data from the parts
 	data := make([][]byte, ps.total)
 	for i := uint32(0); i < ps.total; i++ {
+		if ps.parts[i] == nil {
+			continue
+		}
 		data[i] = ps.parts[i].Bytes
 	}
 	// decode the data
@@ -410,17 +416,21 @@ func (ps *PartSet) BlockBytes() ([]byte, error) {
 		return nil, err
 	}
 	bz := make([]byte, 0, ps.ByteSize())
-	fmt.Println("byte size", ps.ByteSize())
 	for i := uint32(0); i < ((ps.Total() / 2) - 1); i++ {
 		bz = append(bz, ps.parts[i].Bytes...)
 	}
-	bz = append(bz, ps.parts[(ps.Total()/2)-1].Bytes[:int(BlockPartSizeBytes)-ps.LastPartPadding()]...)
+	bz = append(bz, ps.parts[(ps.Total()/2)-1].Bytes[:ps.lastPartNonPadding()]...)
 	return bz, nil
 }
 
-// LastPartPadding returns the number of bytes of padding in the last part.
-func (ps *PartSet) LastPartPadding() int {
-	return int(BlockPartSizeBytes) - int(int(ps.ByteSize())%int(BlockPartSizeBytes))
+// LastPartPadding returns the number of bytes in the last part that are not
+// padding.
+func (ps *PartSet) lastPartNonPadding() int {
+	cursor := int(ps.ByteSize()) % int(BlockPartSizeBytes)
+	if cursor == 0 {
+		return int(BlockPartSizeBytes)
+	}
+	return cursor
 }
 
 func (ps *PartSet) ReadBlock() (*Block, error) {
