@@ -12,14 +12,22 @@ import (
 
 const (
 	// MaxBlockSizeBytes is the maximum permitted size of the blocks.
-	MaxBlockSizeBytes = 104857600 // 100MB
+	MaxBlockSizeBytes = 1_000_000_000 // 1GB
 
+)
+
+var (
 	// BlockPartSizeBytes is the size of one block part.
 	BlockPartSizeBytes uint32 = 65536 // 64kB
 
 	// MaxBlockPartsCount is the maximum number of block parts.
 	MaxBlockPartsCount = (MaxBlockSizeBytes / BlockPartSizeBytes) + 1
 )
+
+func SetBlockPartSizeBytes(size uint32) {
+	BlockPartSizeBytes = size
+	MaxBlockPartsCount = (MaxBlockSizeBytes / BlockPartSizeBytes) + 1
+}
 
 // DefaultConsensusParams returns a default ConsensusParams.
 func DefaultConsensusParams() *cmtproto.ConsensusParams {
