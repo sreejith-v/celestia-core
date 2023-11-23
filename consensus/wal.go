@@ -22,10 +22,13 @@ import (
 
 const (
 	// time.Time + max consensus msg size
-	maxMsgSizeBytes = maxMsgSize + 24
 
 	// how often the WAL should be sync'd during period sync'ing
 	walDefaultFlushInterval = 2 * time.Second
+)
+
+var (
+	maxMsgSizeBytes = maxMsgSize + 24
 )
 
 //--------------------------------------------------------
@@ -314,7 +317,7 @@ func (enc *WALEncoder) Encode(v *TimedWALMessage) error {
 
 	crc := crc32.Checksum(data, crc32c)
 	length := uint32(len(data))
-	if length > maxMsgSizeBytes {
+	if length > uint32(maxMsgSizeBytes) {
 		return fmt.Errorf("msg is too big: %d bytes, max: %d bytes", length, maxMsgSizeBytes)
 	}
 	totalLength := 8 + int(length)
@@ -381,11 +384,11 @@ func (dec *WALDecoder) Decode() (*TimedWALMessage, error) {
 	}
 	length := binary.BigEndian.Uint32(b)
 
-	if length > maxMsgSizeBytes {
+	if length > uint32(maxMsgSizeBytes) {
 		return nil, DataCorruptionError{fmt.Errorf(
 			"length %d exceeded maximum possible value of %d bytes",
 			length,
-			maxMsgSizeBytes)}
+			uint32(maxMsgSizeBytes))}
 	}
 
 	data := make([]byte, length)
