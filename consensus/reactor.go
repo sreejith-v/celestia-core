@@ -30,11 +30,32 @@ const (
 	VoteChannel        = byte(0x22)
 	VoteSetBitsChannel = byte(0x23)
 
-	maxMsgSize = 1048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
-
 	blocksToContributeToBecomeGoodPeer = 10000
 	votesToContributeToBecomeGoodPeer  = 10000
 )
+
+var (
+	maxMsgSize         = 10048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
+	BlockPartPriority  = 10
+	SendQueueCapacity  = 100
+	RecvBufferCapacity = 50 * 4096
+)
+
+func SetMaxMsgSize(size int) {
+	maxMsgSize = size
+}
+
+func SetBlockPartPriority(priority int) {
+	BlockPartPriority = priority
+}
+
+func SetSendQueueCapacity(capacity int) {
+	SendQueueCapacity = capacity
+}
+
+func SetRecvBufferCapacity(capacity int) {
+	RecvBufferCapacity = capacity
+}
 
 //-----------------------------------------------------------------------------
 
@@ -161,9 +182,9 @@ func (conR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 		{
 			ID: DataChannel, // maybe split between gossiping current block and catchup stuff
 			// once we gossip the whole block there's nothing left to send until next height or round
-			Priority:            10,
-			SendQueueCapacity:   100,
-			RecvBufferCapacity:  50 * 4096,
+			Priority:            BlockPartPriority,
+			SendQueueCapacity:   SendQueueCapacity,
+			RecvBufferCapacity:  RecvBufferCapacity,
 			RecvMessageCapacity: maxMsgSize,
 			MessageType:         &cmtcons.Message{},
 		},
