@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -66,7 +67,7 @@ var (
 	// This global var is filled by an init function in the schema package. This
 	// allows for the schema package to contain all the relevant logic while
 	// avoiding import cycles.
-	DefaultInfluxTables = []string{}
+	DefaultInfluxTables = ""
 )
 
 // Config defines the top level configuration for a CometBFT node
@@ -1200,8 +1201,9 @@ type InstrumentationConfig struct {
 	InfluxBatchSize int `mapstructure:"influx_batch_size"`
 
 	// InfluxTables is the list of tables that will be traced. See the
-	// pkg/trace/schema for a complete list of tables.
-	InfluxTables []string `mapstructure:"influx_tables"`
+	// pkg/trace/schema for a complete list of tables. It is represented as a
+	// comma separate string. For example: "consensus_round_state,mempool_tx".
+	InfluxTables string `mapstructure:"influx_tables"`
 
 	// PyroscopeURL is the pyroscope url used to establish a connection with a
 	// pyroscope continuous profiling server.
@@ -1213,8 +1215,9 @@ type InstrumentationConfig struct {
 	// PyroscopeProfileTypes is a list of profile types to be traced with
 	// pyroscope. Available profile types are: cpu, alloc_objects, alloc_space,
 	// inuse_objects, inuse_space, goroutines, mutex_count, mutex_duration,
-	// block_count, block_duration.
-	PyroscopeProfileTypes []string `mapstructure:"pyroscope_profile_types"`
+	// block_count, block_duration. It is represented as a comma separate
+	// string. For example: "goroutines,alloc_objects".
+	PyroscopeProfileTypes string `mapstructure:"pyroscope_profile_types"`
 }
 
 // DefaultInstrumentationConfig returns a default configuration for metrics
@@ -1232,7 +1235,7 @@ func DefaultInstrumentationConfig() *InstrumentationConfig {
 		InfluxTables:         DefaultInfluxTables,
 		PyroscopeURL:         "",
 		PyroscopeTrace:       false,
-		PyroscopeProfileTypes: []string{
+		PyroscopeProfileTypes: strings.Join([]string{
 			"cpu",
 			"alloc_objects",
 			"inuse_objects",
@@ -1242,6 +1245,7 @@ func DefaultInstrumentationConfig() *InstrumentationConfig {
 			"block_count",
 			"block_duration",
 		},
+			","),
 	}
 }
 
