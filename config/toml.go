@@ -559,7 +559,7 @@ influx_batch_size = {{ .Instrumentation.InfluxBatchSize }}
 
 # The list of tables that are updated when tracing. All available tables and
 # their schema can be found in the pkg/trace/schema package. It is represented as a
-// comma separate string. For example: "consensus_round_state,mempool_tx".
+# comma separate string. For example: "consensus_round_state,mempool_tx".
 influx_tables = "{{ .Instrumentation.InfluxTables }}"
 
 # The URL of the pyroscope instance to use for continuous profiling.
@@ -574,7 +574,7 @@ pyroscope_trace = {{ .Instrumentation.PyroscopeTrace }}
 # pyroscope. Available profile types are: cpu, alloc_objects, alloc_space,
 # inuse_objects, inuse_space, goroutines, mutex_count, mutex_duration,
 # block_count, block_duration. It is represented as a comma separate
-// string. For example: "goroutines,alloc_objects".
+# string. For example: "goroutines,alloc_objects".
 pyroscope_profile_types = "{{ .Instrumentation.PyroscopeProfileTypes }}"
 
 `
