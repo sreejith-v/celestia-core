@@ -768,6 +768,7 @@ func (conR *Reactor) gossipDataForCatchup(logger log.Logger, rs *cstypes.RoundSt
 			},
 		}, logger) {
 			ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
+			schema.WriteBlockPart(conR.traceClient, prs.Height, prs.Round, peer.ID(), pp.Index, schema.TransferTypeUpload)
 		} else {
 			logger.Debug("Sending block part for catchup failed")
 			// sleep to avoid retrying too fast

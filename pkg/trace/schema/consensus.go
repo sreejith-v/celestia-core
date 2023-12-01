@@ -55,6 +55,12 @@ const (
 	// BlockPartIndexFieldKey is the name of the field that stores the block
 	// part
 	BlockPartIndexFieldKey = "index"
+
+	// TransferTypeUploadCatchup is a tracing field value for sending some data
+	// to a peer. This value is used by the "TransferType" field key. It
+	// indicates that the data uploaded was during the gossipDataCatchup
+	// routine.
+	TransferTypeUploadCatchup = "upload-catchup"
 )
 
 // WriteBlockPart writes a tracing point for a BlockPart using the predetermined
