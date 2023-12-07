@@ -96,13 +96,6 @@ func MsgToProto(msg Message) (*cmtcons.Message, error) {
 		}
 		return pb.Wrap().(*cmtcons.Message), nil
 
-	case *HasProposalBlockPartMessage:
-		pb = &cmtcons.HasProposalBlockPart{
-			Height: msg.Height,
-			Round:  msg.Round,
-			Index:  msg.Index,
-		}
-
 	case *VoteSetMaj23Message:
 		bi := msg.BlockID.ToProto()
 		m := &cmtcons.VoteSetMaj23{

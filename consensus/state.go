@@ -1890,6 +1890,8 @@ func (cs *State) defaultSetProposal(proposal *types.Proposal) error {
 	return nil
 }
 
+var UseHasBlockParts = true
+
 // NOTE: block is not necessarily valid.
 // Asynchronously triggers either enterPrevote (before we timeout of propose) or tryFinalizeCommit,
 // once we have the full block.
@@ -1927,11 +1929,15 @@ func (cs *State) addProposalBlockPart(msg *BlockPartMessage, peerID p2p.ID) (add
 	}
 
 	cs.metrics.BlockGossipPartsReceived.With("matches_current", "true").Add(1)
-	if !added {
-		// NOTE: we are disregarding possible duplicates above where heights dont match or we're not expecting block parts yet
-		// but between the matches_current = true and false, we have all the info.
-		cs.metrics.DuplicateBlockPart.Add(1)
-	} else {
+	// if !added {
+	// 	// NOTE: we are disregarding possible duplicates above where heights dont match or we're not expecting block parts yet
+	// 	// but between the matches_current = true and false, we have all the info.
+	// 	// cs.metrics.DuplicateBlockPart.Add(1)
+	// } else {
+
+	// }
+
+	if added && UseHasBlockParts {
 		cs.evsw.FireEvent(types.EventProposalBlockPart, msg)
 	}
 
