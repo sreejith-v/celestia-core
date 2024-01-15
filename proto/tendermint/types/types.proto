@@ -8,6 +8,7 @@ import "google/protobuf/timestamp.proto";
 import "tendermint/crypto/proof.proto";
 import "tendermint/version/types.proto";
 import "tendermint/types/validator.proto";
+import "tendermint/libs/bits/types.proto";
 
 // BlockIdFlag indicates which BlcokID the signature is for
 enum BlockIDFlag {
@@ -154,7 +155,42 @@ message Proposal {
   BlockID                   block_id  = 5 [(gogoproto.customname) = "BlockID", (gogoproto.nullable) = false];
   google.protobuf.Timestamp timestamp = 6
       [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
-  bytes signature = 7;
+  bytes        signature     = 7;
+  CompactBlock compact_block = 8 [(gogoproto.nullable) = false];
+  Haves        haves         = 9 [(gogoproto.nullable) = false];
+}
+
+// CompactBlock is an opttional list of transactions added to the proposal by
+// the proposer. It enables peers to optimize block propogation
+message CompactBlock {
+  repeated TxMetadata tx_metadata = 1 [(gogoproto.nullable) = false];
+}
+
+message TxMetadata {
+  bytes  hash  = 1;
+  uint32 start = 2;
+}
+
+// Haves contains the indexes of the compact block transactions that a peer
+// already has. This is optionally added to the msg that contains the proposal.
+message Haves {
+  int64                         height = 1;
+  int32                         round  = 2;
+  tendermint.libs.bits.BitArray haves  = 3 [(gogoproto.nullable) = false];
+}
+
+// Wants contains the indexes of the compact block transactions that a peer is
+// asking for.
+message Wants {
+  int64                         height = 1;
+  int32                         round  = 2;
+  tendermint.libs.bits.BitArray wants  = 3 [(gogoproto.nullable) = false];
+}
+
+message WantedTxs {
+  int64          height = 1;
+  int32          round  = 2;
+  repeated bytes txs    = 3;
 }
 
 message SignedHeader {

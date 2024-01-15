@@ -26,6 +26,7 @@ import (
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/pkg/trace"
 	"github.com/tendermint/tendermint/pkg/trace/schema"
+	cmtcsproto "github.com/tendermint/tendermint/proto/tendermint/consensus"
 	cmtproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
@@ -1149,14 +1150,15 @@ func (cs *State) isProposer(address []byte) bool {
 func (cs *State) defaultDecideProposal(height int64, round int32) {
 	var block *types.Block
 	var blockParts *types.PartSet
+	var compact *cmtcsproto.CompactBlock
 
 	// Decide on block
 	if cs.TwoThirdPrevoteBlock != nil {
 		// If there is valid block, choose that.
-		block, blockParts = cs.TwoThirdPrevoteBlock, cs.TwoThirdPrevoteBlockParts
+		block, blockParts, compact = cs.TwoThirdPrevoteBlock, cs.TwoThirdPrevoteBlockParts, cs.TwoThirdPrevoteCompactBlock
 	} else {
 		// Create a new proposal block from state/txs from the mempool.
-		block, blockParts = cs.createProposalBlock()
+		block, blockParts, compact = cs.createProposalBlock()
 		if block == nil {
 			return
 		}
@@ -1211,7 +1213,7 @@ func (cs *State) isProposalComplete() bool {
 //
 // NOTE: keep it side-effect free for clarity.
 // CONTRACT: cs.privValidator is not nil.
-func (cs *State) createProposalBlock() (block *types.Block, blockParts *types.PartSet) {
+func (cs *State) createProposalBlock() (block *types.Block, blockParts *types.PartSet, compact cmtcsproto.CompactBlock) {
 	if cs.privValidator == nil {
 		panic("entered createProposalBlock with privValidator being nil")
 	}

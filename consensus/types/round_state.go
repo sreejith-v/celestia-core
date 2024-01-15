@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/tendermint/tendermint/libs/bytes"
+	cmtproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -81,8 +82,9 @@ type RoundState struct {
 	LockedBlockParts   *types.PartSet      `json:"locked_block_parts"`
 
 	// Last known round with POL for non-nil valid block.
-	TwoThirdPrevoteRound int32        `json:"valid_round"`
-	TwoThirdPrevoteBlock *types.Block `json:"valid_block"` // Last known block of POL mentioned above.
+	TwoThirdPrevoteRound        int32                  `json:"valid_round"`
+	TwoThirdPrevoteBlock        *types.Block           `json:"valid_block"` // Last known block of POL mentioned above.
+	TwoThirdPrevoteCompactBlock *cmtproto.CompactBlock `json:"valid_compact_block"`
 
 	// Last known block parts of POL mentioned above.
 	TwoThirdPrevoteBlockParts *types.PartSet      `json:"valid_block_parts"`
