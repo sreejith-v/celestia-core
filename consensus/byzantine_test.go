@@ -230,7 +230,7 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 		}
 		proposerAddr := lazyProposer.privValidatorPubKey.Address()
 
-		block, blockParts := lazyProposer.blockExec.CreateProposalBlock(
+		block, blockParts, compact := lazyProposer.blockExec.CreateProposalBlock(
 			lazyProposer.Height, lazyProposer.state, commit, proposerAddr,
 		)
 
@@ -244,6 +244,10 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 		propBlockID := types.BlockID{Hash: block.Hash(), PartSetHeader: blockParts.Header()}
 		proposal := types.NewProposal(height, round, lazyProposer.TwoThirdPrevoteRound, propBlockID)
 		p := proposal.ToProto()
+		p.CompactBlock = compact
+		p.Haves = types.FullHalves(len(p.CompactBlock.TxMetadata))
+		p.Haves.Height = height
+		p.Haves.Round = round
 		if err := lazyProposer.privValidator.SignProposal(lazyProposer.state.ChainID, p); err == nil {
 			proposal.Signature = p.Signature
 
@@ -480,11 +484,17 @@ func byzantineDecideProposalFunc(t *testing.T, height int64, round int32, cs *St
 	// Avoid sending on internalMsgQueue and running consensus state.
 
 	// Create a new proposal block from state/txs from the mempool.
-	block1, blockParts1 := cs.createProposalBlock()
+	block1, blockParts1, compact := cs.createProposalBlock()
 	polRound := cs.TwoThirdPrevoteRound
 	propBlockID := types.BlockID{Hash: block1.Hash(), PartSetHeader: blockParts1.Header()}
 	proposal1 := types.NewProposal(height, round, polRound, propBlockID)
 	p1 := proposal1.ToProto()
+
+	p1.CompactBlock = compact
+	p1.Haves = types.FullHalves(len(p1.CompactBlock.TxMetadata))
+	p1.Haves.Height = height
+	p1.Haves.Round = round
+
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, p1); err != nil {
 		t.Error(err)
 	}
@@ -495,11 +505,15 @@ func byzantineDecideProposalFunc(t *testing.T, height int64, round int32, cs *St
 	deliverTxsRange(cs, 0, 1)
 
 	// Create a new proposal block from state/txs from the mempool.
-	block2, blockParts2 := cs.createProposalBlock()
+	block2, blockParts2, compact2 := cs.createProposalBlock()
 	polRound = cs.TwoThirdPrevoteRound
 	propBlockID = types.BlockID{Hash: block2.Hash(), PartSetHeader: blockParts2.Header()}
 	proposal2 := types.NewProposal(height, round, polRound, propBlockID)
 	p2 := proposal2.ToProto()
+	p2.CompactBlock = compact2
+	p2.Haves = types.FullHalves(len(p2.CompactBlock.TxMetadata))
+	p2.Haves.Height = height
+	p2.Haves.Round = round
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, p2); err != nil {
 		t.Error(err)
 	}

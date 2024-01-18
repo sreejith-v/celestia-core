@@ -1194,14 +1194,15 @@ func (cs *State) isProposer(address []byte) bool {
 func (cs *State) defaultDecideProposal(height int64, round int32) {
 	var block *types.Block
 	var blockParts *types.PartSet
+	var compact *cmtproto.CompactBlock
 
 	// Decide on block
 	if cs.TwoThirdPrevoteBlock != nil {
 		// If there is valid block, choose that.
-		block, blockParts = cs.TwoThirdPrevoteBlock, cs.TwoThirdPrevoteBlockParts
+		block, blockParts, compact = cs.TwoThirdPrevoteBlock, cs.TwoThirdPrevoteBlockParts, cs.TwoThirdPrevoteCompactBlock
 	} else {
 		// Create a new proposal block from state/txs from the mempool.
-		block, blockParts = cs.createProposalBlock()
+		block, blockParts, *compact = cs.createProposalBlock()
 		if block == nil {
 			return
 		}
@@ -1210,28 +1211,33 @@ func (cs *State) defaultDecideProposal(height int64, round int32) {
 	// Flush the WAL. Otherwise, we may not recompute the same proposal to sign,
 	// and the privValidator will refuse to sign anything.
 	if err := cs.wal.FlushAndSync(); err != nil {
-		cs.Logger.Error("Error flushing to disk")
+		cs.Logger.Error("failed flushing WAL to disk")
 	}
 
 	// Make proposal
 	propBlockID := types.BlockID{Hash: block.Hash(), PartSetHeader: blockParts.Header()}
 	proposal := types.NewProposal(height, round, cs.TwoThirdPrevoteRound, propBlockID)
 	p := proposal.ToProto()
+
+	p.CompactBlock = *compact
+	p.Haves = types.FullHalves(len(p.CompactBlock.TxMetadata))
+	p.Haves.Height = height
+	p.Haves.Round = round
+
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, p); err == nil {
 		proposal.Signature = p.Signature
 
 		// send proposal and block parts on internal msg queue
-		cs.sendInternalMessage(msgInfo{&cmtcon.ProposalMessage{Proposal: proposal}, ""})
+		cs.sendInternalMessage(msgInfo{&cmtcon.ProposalMessage{proposal}, ""})
+
 		for i := 0; i < int(blockParts.Total()); i++ {
 			part := blockParts.GetPart(i)
-			cs.sendInternalMessage(msgInfo{&cmtcon.BlockPartMessage{Height: cs.Height, Round: cs.Round, Part: part}, ""})
+			cs.sendInternalMessage(msgInfo{&cmtcon.BlockPartMessage{cs.Height, cs.Round, part}, ""})
 		}
-		cs.Logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
-		cs.Logger.Debug("default decide proposal",
-			"msg",
-			log.NewLazySprintf("Signed proposal block: %v", block))
+
+		cs.Logger.Debug("signed proposal", "height", height, "round", round, "proposal", proposal)
 	} else if !cs.replayMode {
-		cs.Logger.Error("enterPropose: Error signing proposal", "height", height, "round", round, "err", err)
+		cs.Logger.Error("propose step; failed signing proposal", "height", height, "round", round, "err", err)
 	}
 }
 
@@ -1257,7 +1263,7 @@ func (cs *State) isProposalComplete() bool {
 //
 // NOTE: keep it side-effect free for clarity.
 // CONTRACT: cs.privValidator is not nil.
-func (cs *State) createProposalBlock() (block *types.Block, blockParts *types.PartSet) {
+func (cs *State) createProposalBlock() (block *types.Block, blockParts *types.PartSet, compact cmtproto.CompactBlock) {
 	if cs.privValidator == nil {
 		panic("entered createProposalBlock with privValidator being nil")
 	}
@@ -1268,20 +1274,23 @@ func (cs *State) createProposalBlock() (block *types.Block, blockParts *types.Pa
 		// We're creating a proposal for the first block.
 		// The commit is empty, but not nil.
 		commit = types.NewCommit(0, 0, types.BlockID{}, nil)
+
 	case cs.LastCommit.HasTwoThirdsMajority():
 		// Make the commit from LastCommit
 		commit = cs.LastCommit.MakeCommit()
+
 	default: // This shouldn't happen.
-		cs.Logger.Error("enterPropose: Cannot propose anything: No commit for the previous block")
+		cs.Logger.Error("propose step; cannot propose anything without commit for the previous block")
 		return
 	}
 
 	if cs.privValidatorPubKey == nil {
 		// If this node is a validator & proposer in the current round, it will
 		// miss the opportunity to create a block.
-		cs.Logger.Error(fmt.Sprintf("enterPropose: %v", errPubKeyIsNotSet))
+		cs.Logger.Error("propose step; empty priv validator public key", "err", errPubKeyIsNotSet)
 		return
 	}
+
 	proposerAddr := cs.privValidatorPubKey.Address()
 
 	return cs.blockExec.CreateProposalBlock(cs.Height, cs.state, commit, proposerAddr)
