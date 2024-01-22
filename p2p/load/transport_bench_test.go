@@ -1,4 +1,4 @@
-package p2p
+package load
 
 import (
 	"fmt"
@@ -20,9 +20,13 @@ var defaultProtocolVersion = p2p.NewProtocolVersion(
 	0,
 )
 
+var sendTime time.Time
+
 func TestTransportBench(t *testing.T) {
 	cfg := config.DefaultP2PConfig()
 	mcfg := conn.DefaultMConnConfig()
+	mcfg.SendRate = 1000000
+	mcfg.RecvRate = 1000000
 
 	reactor1 := NewMockReactor(defaultTestChannels)
 	node1, err := newnode(*cfg, mcfg, reactor1)
@@ -45,16 +49,28 @@ func TestTransportBench(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second) // wait for the nodes to connect
 
-	success, count := reactor1.FillChannel(FirstChannel, 10000, 1000)
-	time.Sleep(1 * time.Second)                       // wait for the messages to be send
-	fmt.Println(len(reactor2.Traces), success, count) // wait for the messages to be send
-
+	// reactor1.FillChannel(SecondChannel, 1000, 10000)
+	// reactor1.FillChannel(ThirdChannel, 1000, 10000)
+	time.Sleep(100 * time.Millisecond)     // wait for the messages to start sending
+	reactor1.SendBytes(FirstChannel, 2000) // send a messasge on the first channel and see how long it takes to receive
+	sendTime = time.Now()
+	time.Sleep(5 * time.Second) // wait for the messages to be send
+	require.Greater(t, len(reactor2.Traces), 0)
+	// VizBandwidth("test.png", reactor2.Traces)
+	// VizTotalBandwidth("test2.png", reactor2.Traces)
+	for _, m := range reactor2.Traces {
+		if m.Channel == FirstChannel {
+			fmt.Println(m.ReceiveTime.Sub(sendTime).Milliseconds())
+		}
+	}
 }
 
 /*
+The next steps are to compare the rates of a prioritized channel that is also filled.
 
+How to compare rate? We can compare the traces of the sending and receiving, that te
 
- */
+*/
 
 type node struct {
 	key ed25519.PrivKey
@@ -141,12 +157,3 @@ func newSwitch(cfg config.P2PConfig, mt *p2p.MultiplexTransport, rs ...p2p.React
 	}
 	return sw
 }
-
-// func newPeerConfig(outbound bool, chs ...*ChannelDescriptor) peerConfig {
-// 	return peerConfig{
-// 		chDescs:      chs,
-// 		onPeerError:  func(p Peer, i interface{}) { fmt.Println("peer error", p.ID(), i) },
-// 		isPersistent: func(*NetAddress) bool { return false },
-// 		outbound:     outbound,
-// 	}
-// }

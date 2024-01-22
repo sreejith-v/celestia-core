@@ -1,7 +1,8 @@
-package p2p
+package load
 
 import (
 	"crypto/rand"
+	"fmt"
 	"sync"
 	"time"
 
@@ -14,13 +15,22 @@ import (
 const (
 	FirstChannel  = byte(0x01)
 	SecondChannel = byte(0x02)
+	ThirdChannel  = byte(0x03)
 )
+
+var priorities = make(map[byte]int)
+
+func init() {
+	for _, ch := range defaultTestChannels {
+		priorities[ch.ID] = ch.Priority
+	}
+}
 
 var defaultTestChannels = []*p2p.ChannelDescriptor{
 	{
 		ID:                  FirstChannel,
 		Priority:            10,
-		SendQueueCapacity:   100,
+		SendQueueCapacity:   2000,
 		RecvBufferCapacity:  100,
 		RecvMessageCapacity: 2000000,
 		MessageType:         &protomem.Txs{},
@@ -28,7 +38,15 @@ var defaultTestChannels = []*p2p.ChannelDescriptor{
 	{
 		ID:                  SecondChannel,
 		Priority:            5,
-		SendQueueCapacity:   100,
+		SendQueueCapacity:   1000,
+		RecvBufferCapacity:  100,
+		RecvMessageCapacity: 2000000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  ThirdChannel,
+		Priority:            5,
+		SendQueueCapacity:   1000,
 		RecvBufferCapacity:  100,
 		RecvMessageCapacity: 2000000,
 		MessageType:         &protomem.Txs{},
@@ -43,12 +61,6 @@ type MockReactor struct {
 
 	mtx    sync.Mutex
 	Traces []Trace
-}
-
-type Trace struct {
-	Time    time.Time
-	Size    int
-	Channel byte
 }
 
 // NewMockReactor creates a new mock reactor.
@@ -89,11 +101,13 @@ func (mr *MockReactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
 	msg := &protomem.Message{}
 	err := proto.Unmarshal(msgBytes, msg)
 	if err != nil {
-		panic(err)
+		fmt.Println("failure to unmarshal")
+		// panic(err)
 	}
 	uw, err := msg.Unwrap()
 	if err != nil {
-		panic(err)
+		fmt.Println("failure to unwrap")
+		// panic(err)
 	}
 	mr.ReceiveEnvelope(p2p.Envelope{
 		ChannelID: chID,
@@ -117,9 +131,9 @@ func (mr *MockReactor) ReceiveEnvelope(e p2p.Envelope) {
 	t := time.Now()
 	mr.mtx.Lock()
 	mr.Traces = append(mr.Traces, Trace{
-		Time:    t,
-		Size:    size,
-		Channel: e.ChannelID,
+		ReceiveTime: t,
+		Size:        size,
+		Channel:     e.ChannelID,
 	})
 	mr.mtx.Unlock()
 }
@@ -128,7 +142,7 @@ func (mr *MockReactor) SendBytes(chID byte, count int) bool {
 	b := make([]byte, count)
 	_, err := rand.Read(b)
 	if err != nil {
-		mr.Logger.Error("Failed to generate random bytes", "err", err)
+		mr.Logger.Error("Failed to generate random bytes")
 		return false
 	}
 	txs := &protomem.Txs{Txs: [][]byte{b}}
@@ -139,12 +153,15 @@ func (mr *MockReactor) SendBytes(chID byte, count int) bool {
 	}, mr.Logger)
 }
 
-func (mr *MockReactor) FillChannel(chID byte, count, msgSize int) (bool, int) {
+func (mr *MockReactor) FillChannel(chID byte, count, msgSize int) (bool, int, time.Duration) {
+	start := time.Now()
 	for i := 0; i < count; i++ {
 		success := mr.SendBytes(chID, msgSize)
 		if !success {
-			return success, i
+			end := time.Now()
+			return success, i, end.Sub(start)
 		}
 	}
-	return true, count
+	end := time.Now()
+	return true, count, end.Sub(start)
 }

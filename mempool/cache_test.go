@@ -4,7 +4,9 @@ import (
 	"crypto/rand"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/require"
+	protomem "github.com/tendermint/tendermint/proto/tendermint/mempool"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -59,4 +61,26 @@ func TestCacheRemoveByKey(t *testing.T) {
 		require.Equal(t, numTxs-(i+1), len(cache.cacheMap))
 		require.Equal(t, numTxs-(i+1), cache.list.Len())
 	}
+}
+
+func TestRoundTripProtoTxs(t *testing.T) {
+	txs := &protomem.Txs{
+		Txs: [][]byte{
+			[]byte("foo"),
+			[]byte("bar"),
+		},
+	}
+	bz, err := proto.Marshal(txs.Wrap())
+	require.NoError(t, err)
+
+	msg := &protomem.Message{}
+	err = proto.Unmarshal(bz, msg)
+	require.NoError(t, err)
+
+	uw, err := msg.Unwrap()
+	require.NoError(t, err)
+
+	txs2 := uw.(*protomem.Txs)
+
+	require.Equal(t, txs, txs2)
 }
