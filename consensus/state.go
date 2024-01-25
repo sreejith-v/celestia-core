@@ -1201,11 +1201,13 @@ func (cs *State) isProposer(address []byte) bool {
 func (cs *State) defaultDecideProposal(height int64, round int32) {
 	var block *types.Block
 	var blockParts *types.PartSet
+	var blockHash []byte
 
 	// Decide on block
 	if cs.TwoThirdPrevoteBlock != nil {
 		// If there is valid block, choose that.
 		block, blockParts = cs.TwoThirdPrevoteBlock, cs.TwoThirdPrevoteBlockParts
+		blockHash = block.Hash()
 	} else {
 		// Create a new proposal block from state/txs from the mempool.
 		block = cs.createProposalBlock()
@@ -1214,6 +1216,7 @@ func (cs *State) defaultDecideProposal(height int64, round int32) {
 		}
 		fmt.Println(block)
 		blockParts = block.MakePartSet(types.BlockPartSizeBytes)
+		blockHash = block.Hash()
 		fmt.Println("generated blockParts", blockParts.Header(), "squareSize", block.Data.SquareSize, "numTxs", len(block.Txs))
 
 		keys, err := cs.txFetcher.FetchKeysFromTxs(context.Background(), block.Txs.ToSliceOfBytes())
@@ -1234,7 +1237,7 @@ func (cs *State) defaultDecideProposal(height int64, round int32) {
 	}
 
 	// Make proposal
-	propBlockID := types.BlockID{Hash: block.Hash(), PartSetHeader: blockParts.Header()}
+	propBlockID := types.BlockID{Hash: blockHash, PartSetHeader: blockParts.Header()}
 	proposal := types.NewProposal(height, round, cs.TwoThirdPrevoteRound, propBlockID)
 	p := proposal.ToProto()
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, p); err == nil {
@@ -1964,6 +1967,11 @@ func (cs *State) addCompactBlock(msg *CompactBlockMessage, peerID p2p.ID) error 
 	compactBlock := msg.Block
 	height := compactBlock.Height
 
+	if cs.ProposalBlock != nil {
+		// We already have the proposal block.
+		return nil	
+	}
+
 	// Blocks might be reused, so round mismatch is OK
 	if cs.Height != height {
 		cs.Logger.Debug("received compact block from wrong height", "height", height)
@@ -2461,7 +2469,7 @@ func (cs *State) signAddVote(msgType cmtproto.SignedMsgType, hash []byte, header
 	vote, err := cs.signVote(msgType, hash, header)
 	if err == nil {
 		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, ""})
-		cs.Logger.Debug("signed and pushed vote", "height", cs.Height, "round", cs.Round, "vote", vote)
+		cs.Logger.Info("signed and pushed vote", "height", cs.Height, "round", cs.Round, "vote", vote)
 		return vote
 	}
 
