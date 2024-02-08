@@ -412,7 +412,6 @@ func (c *MConnection) CanSend(chID byte) bool {
 
 	channel, ok := c.channelsIdx[chID]
 	if !ok {
-		c.Logger.Error(fmt.Sprintf("Unknown channel %X", chID))
 		return false
 	}
 	return channel.canSend()
@@ -725,6 +724,9 @@ type ChannelDescriptor struct {
 	RecvBufferCapacity  int
 	RecvMessageCapacity int
 	MessageType         proto.Message
+	// Connection describes which connection the messages of this channel should
+	// be sent over.
+	Connection int
 }
 
 func (chDesc ChannelDescriptor) FillDefaults() (filled ChannelDescriptor) {

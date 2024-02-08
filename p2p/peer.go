@@ -163,7 +163,8 @@ type peer struct {
 
 	// raw peerConn and the multiplex connection
 	peerConn
-	mconn *cmtconn.MConnection
+	mconns      []*cmtconn.MConnection
+	channelsIdx map[byte]*cmtconn.MConnection
 
 	// peer's node info and the channel it knows about
 	// channels = nodeInfo.Channels
@@ -205,7 +206,7 @@ func newPeer(
 		mlc:           mlc,
 	}
 
-	p.mconn = createMConnection(
+	mconn := createMConnection(
 		pc.conn,
 		p,
 		reactorsByCh,
@@ -214,6 +215,14 @@ func newPeer(
 		onPeerError,
 		mConfig,
 	)
+
+	p.mconns = append(p.mconns, mconn)
+
+	var channelsIdx = make(map[byte]*cmtconn.MConnection)
+	for _, desc := range chDescs {
+		channelsIdx[desc.ID] = mconn
+	}
+
 	p.BaseService = *service.NewBaseService(nil, "Peer", p)
 	for _, option := range options {
 		option(p)
@@ -225,10 +234,10 @@ func newPeer(
 // String representation.
 func (p *peer) String() string {
 	if p.outbound {
-		return fmt.Sprintf("Peer{%v %v out}", p.mconn, p.ID())
+		return fmt.Sprintf("Peer{%v %v out}", p.mconns, p.ID())
 	}
 
-	return fmt.Sprintf("Peer{%v %v in}", p.mconn, p.ID())
+	return fmt.Sprintf("Peer{%v %v in}", p.mconns, p.ID())
 }
 
 //---------------------------------------------------
@@ -237,7 +246,10 @@ func (p *peer) String() string {
 // SetLogger implements BaseService.
 func (p *peer) SetLogger(l log.Logger) {
 	p.Logger = l
-	p.mconn.SetLogger(l)
+
+	for i := range p.mconns {
+		p.mconns[i].SetLogger(l)
+	}
 }
 
 // OnStart implements BaseService.
@@ -246,8 +258,10 @@ func (p *peer) OnStart() error {
 		return err
 	}
 
-	if err := p.mconn.Start(); err != nil {
-		return err
+	for i := range p.mconns {
+		if err := p.mconns[i].Start(); err != nil {
+			return err
+		}
 	}
 
 	go p.metricsReporter()
@@ -260,15 +274,19 @@ func (p *peer) OnStart() error {
 func (p *peer) FlushStop() {
 	p.metricsTicker.Stop()
 	p.BaseService.OnStop()
-	p.mconn.FlushStop() // stop everything and close the conn
+	for i := range p.mconns {
+		p.mconns[i].FlushStop()
+	} // stop everything and close the conn
 }
 
 // OnStop implements BaseService.
 func (p *peer) OnStop() {
 	p.metricsTicker.Stop()
 	p.BaseService.OnStop()
-	if err := p.mconn.Stop(); err != nil { // stop everything and close the conn
-		p.Logger.Debug("Error while stopping peer", "err", err)
+	for i := range p.mconns {
+		if err := p.mconns[i].Stop(); err != nil { // stop everything and close the conn
+			p.Logger.Debug("Error while stopping peer", "err", err)
+		}
 	}
 }
 
@@ -305,7 +323,7 @@ func (p *peer) SocketAddr() *NetAddress {
 
 // Status returns the peer's ConnectionStatus.
 func (p *peer) Status() cmtconn.ConnectionStatus {
-	return p.mconn.Status()
+	return p.mconns[0].Status()
 }
 
 // SendEnvelope sends the message in the envelope on the channel specified by the
@@ -350,7 +368,12 @@ func (p *peer) Send(chID byte, msgBytes []byte) bool {
 	} else if !p.hasChannel(chID) {
 		return false
 	}
-	res := p.mconn.Send(chID, msgBytes)
+	mconn, has := p.channelsIdx[chID]
+	if !has {
+		p.Logger.Error("Unknown channel", "chID", chID)
+		return false
+	}
+	res := mconn.Send(chID, msgBytes)
 	if res {
 		labels := []string{
 			"peer_id", string(p.ID()),
@@ -404,7 +427,14 @@ func (p *peer) TrySend(chID byte, msgBytes []byte) bool {
 	} else if !p.hasChannel(chID) {
 		return false
 	}
-	res := p.mconn.TrySend(chID, msgBytes)
+
+	mconn, has := p.channelsIdx[chID]
+	if !has {
+		p.Logger.Error("Unknown channel", "chID", chID)
+		return false
+	}
+
+	res := mconn.TrySend(chID, msgBytes)
 	if res {
 		labels := []string{
 			"peer_id", string(p.ID()),
@@ -477,7 +507,13 @@ func (p *peer) CanSend(chID byte) bool {
 	if !p.IsRunning() {
 		return false
 	}
-	return p.mconn.CanSend(chID)
+
+	for i := range p.mconns {
+		if p.mconns[i].CanSend(chID) {
+			return true
+		}
+	}
+	return false
 }
 
 //---------------------------------------------------
@@ -492,13 +528,15 @@ func (p *peer) metricsReporter() {
 	for {
 		select {
 		case <-p.metricsTicker.C:
-			status := p.mconn.Status()
-			var sendQueueSize float64
-			for _, chStatus := range status.Channels {
-				sendQueueSize += float64(chStatus.SendQueueSize)
-			}
+			for i := range p.mconns {
+				status := p.mconns[i].Status()
+				var sendQueueSize float64
+				for _, chStatus := range status.Channels {
+					sendQueueSize += float64(chStatus.SendQueueSize)
+				}
 
-			p.metrics.PeerPendingSendBytes.With("peer_id", string(p.ID())).Set(sendQueueSize)
+				p.metrics.PeerPendingSendBytes.With("peer_id", string(p.ID())).Set(sendQueueSize)
+			}
 		case <-p.Quit():
 			return
 		}
