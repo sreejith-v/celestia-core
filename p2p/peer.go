@@ -217,11 +217,11 @@ func newPeer(
 	)
 
 	p.mconns = append(p.mconns, mconn)
-
 	var channelsIdx = make(map[byte]*cmtconn.MConnection)
 	for _, desc := range chDescs {
 		channelsIdx[desc.ID] = mconn
 	}
+	p.channelsIdx = channelsIdx
 
 	p.BaseService = *service.NewBaseService(nil, "Peer", p)
 	for _, option := range options {
@@ -508,12 +508,12 @@ func (p *peer) CanSend(chID byte) bool {
 		return false
 	}
 
-	for i := range p.mconns {
-		if p.mconns[i].CanSend(chID) {
-			return true
-		}
+	mconn, has := p.channelsIdx[chID]
+	if !has {
+		return false
 	}
-	return false
+
+	return mconn.CanSend(chID)
 }
 
 //---------------------------------------------------
