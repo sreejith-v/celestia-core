@@ -45,7 +45,7 @@ func TestPeerBasic(t *testing.T) {
 	assert.False(p.IsPersistent())
 	p.persistent = true
 	assert.True(p.IsPersistent())
-	assert.Equal(rp.Addr().DialString(), p.RemoteAddr().String())
+	assert.Equal(rp.Addr().DialString(0), p.RemoteAddr().String())
 	assert.Equal(rp.ID(), p.ID())
 }
 
@@ -94,14 +94,14 @@ func createOutboundPeerAndPerformHandshake(
 	}
 	timeout := 1 * time.Second
 	ourNodeInfo := testNodeInfo(addr.ID, "host_peer")
-	peerNodeInfo, err := handshake(pc.conn, timeout, ourNodeInfo)
+	peerNodeInfo, err := handshake(pc.conns[0], timeout, ourNodeInfo)
 	if err != nil {
 		return nil, err
 	}
 
-	p := newPeer(pc, mConfig, peerNodeInfo, reactorsByCh, msgTypeByChID, chDescs, func(p Peer, r interface{}) {}, newMetricsLabelCache())
+	p, err := newPeer(pc, mConfig, peerNodeInfo, reactorsByCh, msgTypeByChID, chDescs, func(p Peer, r interface{}) {}, newMetricsLabelCache())
 	p.SetLogger(log.TestingLogger().With("peer", addr))
-	return p, nil
+	return p, err
 }
 
 func testDial(addr *NetAddress, cfg *config.P2PConfig) (net.Conn, error) {
@@ -195,7 +195,7 @@ func (rp *remotePeer) Dial(addr *NetAddress) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = handshake(pc.conn, time.Second, rp.nodeInfo())
+	_, err = handshake(pc.conns[0], time.Second, rp.nodeInfo())
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func (rp *remotePeer) accept() {
 			golog.Fatalf("Failed to create a peer: %+v", err)
 		}
 
-		_, err = handshake(pc.conn, time.Second, rp.nodeInfo())
+		_, err = handshake(pc.conns[0], time.Second, rp.nodeInfo())
 		if err != nil {
 			golog.Fatalf("Failed to perform handshake: %+v", err)
 		}

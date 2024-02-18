@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"reflect"
@@ -106,7 +107,7 @@ func TrySendEnvelopeShim(p Peer, e Envelope, lg log.Logger) bool {
 type peerConn struct {
 	outbound   bool
 	persistent bool
-	conn       net.Conn // source connection
+	conns      []net.Conn // source connection
 
 	socketAddr *NetAddress
 
@@ -116,14 +117,14 @@ type peerConn struct {
 
 func newPeerConn(
 	outbound, persistent bool,
-	conn net.Conn,
+	conns []net.Conn,
 	socketAddr *NetAddress,
 ) peerConn {
 
 	return peerConn{
 		outbound:   outbound,
 		persistent: persistent,
-		conn:       conn,
+		conns:      conns,
 		socketAddr: socketAddr,
 	}
 }
@@ -131,7 +132,7 @@ func newPeerConn(
 // ID only exists for SecretConnection.
 // NOTE: Will panic if conn is not *SecretConnection.
 func (pc peerConn) ID() ID {
-	return PubKeyToID(pc.conn.(*cmtconn.SecretConnection).RemotePubKey())
+	return PubKeyToID(pc.conns[0].(*cmtconn.SecretConnection).RemotePubKey())
 }
 
 // Return the IP from the connection RemoteAddr
@@ -140,7 +141,7 @@ func (pc peerConn) RemoteIP() net.IP {
 		return pc.ip
 	}
 
-	host, _, err := net.SplitHostPort(pc.conn.RemoteAddr().String())
+	host, _, err := net.SplitHostPort(pc.conns[0].RemoteAddr().String())
 	if err != nil {
 		panic(err)
 	}
@@ -195,7 +196,7 @@ func newPeer(
 	onPeerError func(Peer, interface{}),
 	mlc *metricsLabelCache,
 	options ...PeerOption,
-) *peer {
+) (*peer, error) {
 	p := &peer{
 		peerConn:      pc,
 		nodeInfo:      nodeInfo,
@@ -206,21 +207,33 @@ func newPeer(
 		mlc:           mlc,
 	}
 
-	mconn := createMConnection(
-		pc.conn,
-		p,
-		reactorsByCh,
-		msgTypeByChID,
-		chDescs,
-		onPeerError,
-		mConfig,
-	)
+	channelSets := separateChannels(chDescs)
 
-	p.mconns = append(p.mconns, mconn)
-	var channelsIdx = make(map[byte]*cmtconn.MConnection)
-	for _, desc := range chDescs {
-		channelsIdx[desc.ID] = mconn
+	if len(channelSets) != len(pc.conns) {
+		// TODO: be backwards compatable with peers that use a single or
+		// different number of connections.
+		return nil, errors.New("peer doesn't have enough connections")
 	}
+
+	var channelsIdx = make(map[byte]*cmtconn.MConnection)
+
+	for i, chs := range channelSets {
+		mconn := createMConnection(
+			pc.conns[i],
+			p,
+			reactorsByCh,
+			msgTypeByChID,
+			chDescs,
+			onPeerError,
+			mConfig,
+		)
+
+		p.mconns = append(p.mconns, mconn)
+		for _, desc := range chs {
+			channelsIdx[desc.ID] = mconn
+		}
+	}
+
 	p.channelsIdx = channelsIdx
 
 	p.BaseService = *service.NewBaseService(nil, "Peer", p)
@@ -228,7 +241,15 @@ func newPeer(
 		option(p)
 	}
 
-	return p
+	return p, nil
+}
+
+func separateChannels(chDescs []*cmtconn.ChannelDescriptor) map[int][]*cmtconn.ChannelDescriptor {
+	nest := make(map[int][]*cmtconn.ChannelDescriptor)
+	for _, ch := range chDescs {
+		nest[ch.Connection] = append(nest[ch.Connection], ch)
+	}
+	return nest
 }
 
 // String representation.
@@ -477,7 +498,14 @@ func (p *peer) hasChannel(chID byte) bool {
 
 // CloseConn closes original connection. Used for cleaning up in cases where the peer had not been started at all.
 func (p *peer) CloseConn() error {
-	return p.peerConn.conn.Close()
+	var e error
+	for _, conn := range p.conns {
+		err := conn.Close()
+		if err != nil {
+			e = err
+		}
+	}
+	return e
 }
 
 func (p *peer) SetRemovalFailed() {
@@ -494,12 +522,14 @@ func (p *peer) GetRemovalFailed() bool {
 
 // CloseConn closes the underlying connection
 func (pc *peerConn) CloseConn() {
-	pc.conn.Close()
+	for _, conn := range pc.conns {
+		_ = conn.Close()
+	}
 }
 
 // RemoteAddr returns peer's remote network address.
 func (p *peer) RemoteAddr() net.Addr {
-	return p.peerConn.conn.RemoteAddr()
+	return p.peerConn.conns[0].RemoteAddr()
 }
 
 // CanSend returns true if the send queue is not full, false otherwise.

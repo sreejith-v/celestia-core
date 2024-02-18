@@ -201,7 +201,7 @@ func (mt *MultiplexTransport) Accept(cfg peerConfig) (Peer, error) {
 
 		cfg.outbound = false
 
-		return mt.wrapPeer(a.conn, a.nodeInfo, cfg, a.netAddr), nil
+		return mt.wrapPeer(a.conns, a.nodeInfo, cfg, a.netAddr)
 	case <-mt.closec:
 		return nil, ErrTransportClosed{}
 	}
@@ -229,9 +229,7 @@ func (mt *MultiplexTransport) Dial(
 
 	cfg.outbound = true
 
-	p := mt.wrapPeer(secretConn, nodeInfo, cfg, &addr)
-
-	return p, nil
+	return mt.wrapPeer(secretConn, nodeInfo, cfg, &addr)
 }
 
 // Close implements transportLifecycle.
@@ -247,7 +245,7 @@ func (mt *MultiplexTransport) Close() error {
 
 // Listen implements transportLifecycle.
 func (mt *MultiplexTransport) Listen(addr NetAddress) error {
-	ln, err := net.Listen("tcp", addr.DialString())
+	ln, err := net.Listen("tcp", addr.DialString(0))
 	if err != nil {
 		return err
 	}
@@ -492,11 +490,11 @@ func (mt *MultiplexTransport) upgrade(
 }
 
 func (mt *MultiplexTransport) wrapPeer(
-	c net.Conn,
+	c []net.Conn,
 	ni NodeInfo,
 	cfg peerConfig,
 	socketAddr *NetAddress,
-) Peer {
+) (Peer, error) {
 
 	persistent := false
 	if cfg.isPersistent != nil {
@@ -517,7 +515,7 @@ func (mt *MultiplexTransport) wrapPeer(
 		socketAddr,
 	)
 
-	p := newPeer(
+	return newPeer(
 		peerConn,
 		mt.mConfig,
 		ni,
@@ -528,8 +526,6 @@ func (mt *MultiplexTransport) wrapPeer(
 		cfg.mlc,
 		PeerMetrics(cfg.metrics),
 	)
-
-	return p
 }
 
 func handshake(

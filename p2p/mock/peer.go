@@ -50,7 +50,7 @@ func (mp *Peer) Send(_ byte, _ []byte) bool          { return true }
 func (mp *Peer) NodeInfo() p2p.NodeInfo {
 	return p2p.DefaultNodeInfo{
 		DefaultNodeID: mp.addr.ID,
-		ListenAddr:    mp.addr.DialString(),
+		ListenAddr:    mp.addr.DialString(0),
 	}
 }
 func (mp *Peer) Status() conn.ConnectionStatus { return conn.ConnectionStatus{} }

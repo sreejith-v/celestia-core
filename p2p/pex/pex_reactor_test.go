@@ -392,7 +392,7 @@ func TestPEXReactorDialsPeerUpToMaxAttemptsInSeedMode(t *testing.T) {
 	assert.True(t, book.HasAddress(addr))
 
 	// imitate maxAttemptsToDial reached
-	pexR.attemptsToDial.Store(addr.DialString(), _attemptsToDial{maxAttemptsToDial + 1, time.Now()})
+	pexR.attemptsToDial.Store(addr.DialString(0), _attemptsToDial{maxAttemptsToDial + 1, time.Now()})
 	pexR.crawlPeers([]*p2p.NetAddress{addr})
 
 	assert.False(t, book.HasAddress(addr))

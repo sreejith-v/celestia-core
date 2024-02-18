@@ -23,9 +23,9 @@ const EmptyNetAddress = "<nil-NetAddress>"
 // NetAddress defines information about a peer on the network
 // including its ID, IP address, and port.
 type NetAddress struct {
-	ID   ID     `json:"id"`
-	IP   net.IP `json:"ip"`
-	Port uint16 `json:"port"`
+	ID    ID       `json:"id"`
+	IP    net.IP   `json:"ip"`
+	Ports []uint16 `json:"port"`
 }
 
 // IDAddressString returns id@hostPort. It strips the leading
@@ -131,8 +131,8 @@ func NewNetAddressStrings(addrs []string) ([]*NetAddress, []error) {
 // and port number.
 func NewNetAddressIPPort(ip net.IP, port uint16) *NetAddress {
 	return &NetAddress{
-		IP:   ip,
-		Port: port,
+		IP:    ip,
+		Ports: []uint16{port},
 	}
 }
 
@@ -142,13 +142,20 @@ func NetAddressFromProto(pb tmp2p.NetAddress) (*NetAddress, error) {
 	if ip == nil {
 		return nil, fmt.Errorf("invalid IP address %v", pb.IP)
 	}
-	if pb.Port >= 1<<16 {
-		return nil, fmt.Errorf("invalid port number %v", pb.Port)
+	for _, port := range pb.Port {
+		if port >= 1<<16 {
+			return nil, fmt.Errorf("invalid port number %v", port)
+		}
+	}
+
+	ports := make([]uint16, len(pb.Port))
+	for i, port := range pb.Port {
+		ports[i] = uint16(port)
 	}
 	return &NetAddress{
-		ID:   ID(pb.ID),
-		IP:   ip,
-		Port: uint16(pb.Port),
+		ID:    ID(pb.ID),
+		IP:    ip,
+		Ports: ports,
 	}, nil
 }
 
@@ -178,10 +185,14 @@ func NetAddressesToProto(nas []*NetAddress) []tmp2p.NetAddress {
 
 // ToProto converts a NetAddress to Protobuf.
 func (na *NetAddress) ToProto() tmp2p.NetAddress {
+	ports := make([]uint32, len(na.Ports))
+	for i, port := range na.Ports {
+		ports[i] = uint32(port)
+	}
 	return tmp2p.NetAddress{
 		ID:   string(na.ID),
 		IP:   na.IP.String(),
-		Port: uint32(na.Port),
+		Port: ports,
 	}
 }
 
@@ -197,7 +208,7 @@ func (na *NetAddress) Equals(other interface{}) bool {
 // Same returns true is na has the same non-empty ID or DialString as other.
 func (na *NetAddress) Same(other interface{}) bool {
 	if o, ok := other.(*NetAddress); ok {
-		if na.DialString() == o.DialString() {
+		if na.DialString(0) == o.DialString(0) {
 			return true
 		}
 		if na.ID != "" && na.ID == o.ID {
@@ -213,7 +224,7 @@ func (na *NetAddress) String() string {
 		return EmptyNetAddress
 	}
 
-	addrStr := na.DialString()
+	addrStr := na.DialString(0)
 	if na.ID != "" {
 		addrStr = IDAddressString(na.ID, addrStr)
 	}
@@ -221,19 +232,19 @@ func (na *NetAddress) String() string {
 	return addrStr
 }
 
-func (na *NetAddress) DialString() string {
+func (na *NetAddress) DialString(connection int) string {
 	if na == nil {
 		return "<nil-NetAddress>"
 	}
 	return net.JoinHostPort(
 		na.IP.String(),
-		strconv.FormatUint(uint64(na.Port), 10),
+		strconv.FormatUint(uint64(na.Ports[connection]), 10),
 	)
 }
 
 // Dial calls net.Dial on the address.
 func (na *NetAddress) Dial() (net.Conn, error) {
-	conn, err := net.Dial("tcp", na.DialString())
+	conn, err := net.Dial("tcp", na.DialString(0))
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +253,7 @@ func (na *NetAddress) Dial() (net.Conn, error) {
 
 // DialTimeout calls net.DialTimeout on the address.
 func (na *NetAddress) DialTimeout(timeout time.Duration) (net.Conn, error) {
-	conn, err := net.DialTimeout("tcp", na.DialString(), timeout)
+	conn, err := net.DialTimeout("tcp", na.DialString(0), timeout)
 	if err != nil {
 		return nil, err
 	}

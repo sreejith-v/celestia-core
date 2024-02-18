@@ -554,7 +554,7 @@ func (r *Reactor) ensurePeers() {
 }
 
 func (r *Reactor) dialAttemptsInfo(addr *p2p.NetAddress) (attempts int, lastDialed time.Time) {
-	_attempts, ok := r.attemptsToDial.Load(addr.DialString())
+	_attempts, ok := r.attemptsToDial.Load(addr.DialString(0))
 	if !ok {
 		return
 	}
@@ -590,15 +590,15 @@ func (r *Reactor) dialPeer(addr *p2p.NetAddress) error {
 		switch err.(type) {
 		case p2p.ErrSwitchAuthenticationFailure:
 			// NOTE: addr is removed from addrbook in markAddrInBookBasedOnErr
-			r.attemptsToDial.Delete(addr.DialString())
+			r.attemptsToDial.Delete(addr.DialString(0))
 		default:
-			r.attemptsToDial.Store(addr.DialString(), _attemptsToDial{attempts + 1, time.Now()})
+			r.attemptsToDial.Store(addr.DialString(0), _attemptsToDial{attempts + 1, time.Now()})
 		}
 		return fmt.Errorf("dialing failed (attempts: %d): %w", attempts+1, err)
 	}
 
 	// cleanup any history
-	r.attemptsToDial.Delete(addr.DialString())
+	r.attemptsToDial.Delete(addr.DialString(0))
 	return nil
 }
 
@@ -659,7 +659,7 @@ func (r *Reactor) dialSeeds() {
 // AttemptsToDial returns the number of attempts to dial specific address. It
 // returns 0 if never attempted or successfully connected.
 func (r *Reactor) AttemptsToDial(addr *p2p.NetAddress) int {
-	lAttempts, attempted := r.attemptsToDial.Load(addr.DialString())
+	lAttempts, attempted := r.attemptsToDial.Load(addr.DialString(0))
 	if attempted {
 		return lAttempts.(_attemptsToDial).number
 	}
