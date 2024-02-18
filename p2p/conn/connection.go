@@ -527,6 +527,13 @@ func (c *MConnection) sendPacketMsg() bool {
 		if !channel.isSendPending() {
 			continue
 		}
+
+		if channel.Critical == true {
+			// If the channel is critical, send it immediately
+			leastChannel = channel
+			break
+		}
+
 		// Get ratio, and keep track of lowest ratio.
 		ratio := float32(channel.recentlySent) / float32(channel.desc.Priority)
 		if ratio < leastRatio {
@@ -725,6 +732,7 @@ type ChannelDescriptor struct {
 	RecvBufferCapacity  int
 	RecvMessageCapacity int
 	MessageType         proto.Message
+	Critical            bool
 }
 
 func (chDesc ChannelDescriptor) FillDefaults() (filled ChannelDescriptor) {
@@ -755,6 +763,8 @@ type Channel struct {
 	maxPacketMsgPayloadSize int
 
 	Logger log.Logger
+
+	Critical bool
 }
 
 func newChannel(conn *MConnection, desc ChannelDescriptor) *Channel {
@@ -768,6 +778,7 @@ func newChannel(conn *MConnection, desc ChannelDescriptor) *Channel {
 		sendQueue:               make(chan []byte, desc.SendQueueCapacity),
 		recving:                 make([]byte, 0, desc.RecvBufferCapacity),
 		maxPacketMsgPayloadSize: conn.config.MaxPacketMsgPayloadSize,
+		Critical:                desc.Critical,
 	}
 }
 
