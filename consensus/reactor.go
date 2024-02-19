@@ -147,6 +147,8 @@ conR:
 	}
 }
 
+var CriticalVotes = true
+
 // GetChannels implements Reactor
 func (conR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 	// TODO optimize
@@ -157,7 +159,7 @@ func (conR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 			SendQueueCapacity:   100,
 			RecvMessageCapacity: maxMsgSize,
 			MessageType:         &cmtcons.Message{},
-			Critical:            true,
+			Critical:            CriticalVotes,
 		},
 		{
 			ID: DataChannel, // maybe split between gossiping current block and catchup stuff
@@ -175,7 +177,7 @@ func (conR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 			RecvBufferCapacity:  100 * 100,
 			RecvMessageCapacity: maxMsgSize,
 			MessageType:         &cmtcons.Message{},
-			Critical:            true,
+			Critical:            CriticalVotes,
 		},
 		{
 			ID:                  VoteSetBitsChannel,
@@ -184,7 +186,7 @@ func (conR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 			RecvBufferCapacity:  1024,
 			RecvMessageCapacity: maxMsgSize,
 			MessageType:         &cmtcons.Message{},
-			Critical:            true,
+			Critical:            CriticalVotes,
 		},
 	}
 }
@@ -573,8 +575,12 @@ func (conR *Reactor) getRoundState() *cstypes.RoundState {
 	return conR.rs
 }
 
+var ProposalFixEnabled = false
+
 func (conR *Reactor) gossipDataRoutine(peer p2p.Peer, ps *PeerState) {
 	logger := conR.Logger.With("peer", peer)
+
+	alreadySlept := false
 
 OUTER_LOOP:
 	for {
@@ -582,6 +588,14 @@ OUTER_LOOP:
 		if !peer.IsRunning() || !conR.IsRunning() {
 			return
 		}
+
+		// wait 100ms if we are the proposer to enable all block parts to pass
+		// through the internal queue
+		isProposer := conR.conS.isProposer(conR.conS.privValidatorPubKey.Address())
+		if isProposer && ProposalFixEnabled && !alreadySlept {
+			time.Sleep(100 * time.Millisecond)
+		}
+		alreadySlept = true
 
 		rs := conR.getRoundState()
 		prs := ps.GetRoundState()
@@ -673,9 +687,10 @@ OUTER_LOOP:
 					},
 				}, logger)
 			}
+			alreadySlept = false
 			continue OUTER_LOOP
 		}
-
+		alreadySlept = false
 		// Nothing to do. Sleep.
 		time.Sleep(conR.conS.config.PeerGossipSleepDuration)
 		continue OUTER_LOOP

@@ -145,6 +145,8 @@ func (memR *Reactor) OnStop() {
 	memR.requests.Close()
 }
 
+var CriticalCATState = false
+
 // GetChannels implements Reactor by returning the list of channels for this
 // reactor.
 func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
@@ -175,6 +177,7 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 			Priority:            5,
 			RecvMessageCapacity: stateMsg.Size(),
 			MessageType:         &protomem.Message{},
+			Critical:            CriticalCATState,
 		},
 	}
 }
