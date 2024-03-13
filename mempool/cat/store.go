@@ -28,7 +28,7 @@ func (s *store) set(wtx *wrappedTx) bool {
 	}
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	if tx, exists := s.txs[wtx.key]; !exists || tx.height == -1 {
+	if tx, exists := s.txs[wtx.key]; !exists || tx.isReserved() {
 		s.txs[wtx.key] = wtx
 		s.bytes += wtx.size()
 		return true
@@ -39,7 +39,11 @@ func (s *store) set(wtx *wrappedTx) bool {
 func (s *store) get(txKey types.TxKey) *wrappedTx {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
-	return s.txs[txKey]
+	tx := s.txs[txKey]
+	if tx != nil && tx.isReserved() {
+		return nil
+	}
+	return tx
 }
 
 func (s *store) getCommitted(txKey types.TxKey) *wrappedTx {
@@ -51,7 +55,10 @@ func (s *store) getCommitted(txKey types.TxKey) *wrappedTx {
 func (s *store) has(txKey types.TxKey) bool {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
-	_, has := s.txs[txKey]
+	tx, has := s.txs[txKey]
+	if has && tx.isReserved() {
+		return false
+	}
 	return has
 }
 
@@ -104,7 +111,7 @@ func (s *store) release(txKey types.TxKey) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	value, ok := s.txs[txKey]
-	if ok && value.height == -1 {
+	if ok && value.isReserved() {
 		delete(s.txs, txKey)
 	}
 }
@@ -124,11 +131,12 @@ func (s *store) totalBytes() int64 {
 func (s *store) getAllKeys() []types.TxKey {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
-	keys := make([]types.TxKey, len(s.txs))
-	idx := 0
-	for key := range s.txs {
-		keys[idx] = key
-		idx++
+	keys := make([]types.TxKey, 0, len(s.txs))
+	for key, tx := range s.txs {
+		if tx.isReserved() {
+			continue
+		}
+		keys = append(keys, key)
 	}
 	return keys
 }
@@ -136,11 +144,12 @@ func (s *store) getAllKeys() []types.TxKey {
 func (s *store) getAllTxs() []*wrappedTx {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
-	txs := make([]*wrappedTx, len(s.txs))
-	idx := 0
+	txs := make([]*wrappedTx, 0, len(s.txs))
 	for _, tx := range s.txs {
-		txs[idx] = tx
-		idx++
+		if tx.isReserved() {
+			continue
+		}
+		txs = append(txs, tx)
 	}
 	return txs
 }
@@ -151,6 +160,9 @@ func (s *store) getTxsBelowPriority(priority int64) ([]*wrappedTx, int64) {
 	txs := make([]*wrappedTx, 0, len(s.txs))
 	bytes := int64(0)
 	for _, tx := range s.txs {
+		if tx.isReserved() {
+			continue
+		}
 		if tx.priority < priority {
 			txs = append(txs, tx)
 			bytes += tx.size()
