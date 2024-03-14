@@ -167,7 +167,6 @@ type State struct {
 
 	// for reporting metrics
 	metrics     *Metrics
-	jsonMetrics *JSONMetrics
 	traceClient *trace.Client
 }
 
@@ -206,7 +205,6 @@ func NewState(
 		evpool:           evpool,
 		evsw:             cmtevents.NewEventSwitch(),
 		metrics:          NopMetrics(),
-		jsonMetrics:      NewJSONMetrics(path),
 		traceClient:      &trace.Client{},
 	}
 
@@ -1967,27 +1965,24 @@ func (cs *State) addCompactBlock(msg *CompactBlockMessage, peerID p2p.ID) error 
 	height := compactBlock.Height
 
 	if cs.ProposalBlock != nil {
+		cs.Logger.Info("received compact block when we already have a proposal block", "height", height, "round", cs.Round, "hash", cs.ProposalBlock.Hash())
 		// We already have the proposal block.
 		return nil
 	}
 
 	// Blocks might be reused, so round mismatch is OK
 	if cs.Height != height {
-		cs.Logger.Debug("received compact block from wrong height", "height", height, "currentHeight", cs.Height)
+		cs.Logger.Info("received compact block from wrong height", "height", height, "currentHeight", cs.Height)
 		cs.metrics.BlockGossipPartsReceived.With("matches_current", "false").Add(1)
 		return nil
 	}
 
 	// We're not expecting a block part.
 	if cs.ProposalBlockParts == nil || cs.Proposal == nil {
+		cs.Logger.Info("handling proposal block part during compact block?", "height", height)
 		cs.metrics.BlockGossipPartsReceived.With("matches_current", "false").Add(1)
 		// NOTE: this can happen when we've gone to a higher round and
 		// then receive parts from the previous round - not necessarily a bad peer.
-		cs.Logger.Debug(
-			"received a block part when we are not expecting any",
-			"height", height,
-			"peer", peerID,
-		)
 		return nil
 	}
 
@@ -1996,6 +1991,7 @@ func (cs *State) addCompactBlock(msg *CompactBlockMessage, peerID p2p.ID) error 
 
 	// Yield the lock while we fetch the transactions from the mempool so that votes
 	// and other operations can be processed.
+	cs.Logger.Info("yielding lock compact block", "height", height, "round", cs.Round)
 	cs.mtx.Unlock()
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -2003,9 +1999,10 @@ func (cs *State) addCompactBlock(msg *CompactBlockMessage, peerID p2p.ID) error 
 
 	txs, err := cs.txFetcher.FetchTxsFromKeys(ctx, blockHash, compactBlock.Data.Txs.ToSliceOfBytes())
 
+	cs.Logger.Info("fetched transactions from mempool for compact block", "height", height, "round", cs.Round, "txs", len(txs))
+
 	cs.mtx.Lock()
 	if err != nil {
-		cs.jsonMetrics.CompactBlockFailures++
 		if ctx.Err() != nil {
 			cs.Logger.Info("failed to fetch transactions within the timeout", "timeout", timeout)
 			return nil
@@ -2037,6 +2034,7 @@ func (cs *State) addCompactBlock(msg *CompactBlockMessage, peerID p2p.ID) error 
 		return fmt.Errorf("received compact block with part set header [%v] that does not match proposal [%v]", partSet.Header(), cs.Proposal.BlockID.PartSetHeader)
 	}
 
+	cs.Logger.Info("assembled proposal block from compact block", "height", height, "round", cs.Round, "hash", block.Hash())
 	cs.ProposalCompactBlock = compactBlock
 	cs.ProposalBlock = block
 	cs.ProposalBlockParts = partSet
@@ -2086,6 +2084,8 @@ func (cs *State) addProposalBlockPart(msg *BlockPartMessage, peerID p2p.ID) (add
 		}
 		return added, err
 	}
+
+	cs.Logger.Info("added block part", "height", height, "round", round, "index", part.Index, "peer", peerID, "total", cs.ProposalBlockParts.Total(), "complete", cs.ProposalBlockParts.IsComplete())
 
 	cs.metrics.BlockGossipPartsReceived.With("matches_current", "true").Add(1)
 
