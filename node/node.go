@@ -11,9 +11,9 @@ import (
 	"time"
 
 	dbm "github.com/cometbft/cometbft-db"
+	"github.com/grafana/pyroscope-go"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/pyroscope-io/client/pyroscope"
 	"github.com/rs/cors"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
@@ -395,9 +395,10 @@ func createMempoolAndMempoolReactor(
 		reactor, err := mempoolv2.NewReactor(
 			mp,
 			&mempoolv2.ReactorOptions{
-				ListenOnly:  !config.Mempool.Broadcast,
-				MaxTxSize:   config.Mempool.MaxTxBytes,
-				TraceClient: traceClient,
+				ListenOnly:     !config.Mempool.Broadcast,
+				MaxTxSize:      config.Mempool.MaxTxBytes,
+				TraceClient:    traceClient,
+				MaxGossipDelay: config.Mempool.MaxGossipDelay,
 			},
 		)
 		if err != nil {
