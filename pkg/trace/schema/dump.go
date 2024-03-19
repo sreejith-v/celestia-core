@@ -26,10 +26,10 @@ func WriteDump(
 ) {
 	// this check is redundant to what is checked during WritePoint, although it
 	// is an optimization to avoid allocations from the map of fields.
-	if !client.IsCollecting(BlockPartsTable) {
+	if !client.IsCollecting(DumpTable) {
 		return
 	}
-	client.WritePoint(BlockPartsTable, map[string]interface{}{
+	client.WritePoint(DumpTable, map[string]interface{}{
 		DumpFieldKey:      key,
 		DumpValueFieldKey: value,
 	})

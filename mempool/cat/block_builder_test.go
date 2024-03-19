@@ -207,7 +207,7 @@ func TestFetchTxsFromKeys(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				time.Sleep(time.Duration(rand.Int63n(100)) * time.Millisecond)
+				time.Sleep(time.Duration(rand.Int63n(10000)) * time.Millisecond)
 				reactor.ReceiveEnvelope(p2p.Envelope{
 					Src:       peer,
 					Message:   &memproto.Txs{Txs: [][]byte{tx}},
@@ -219,13 +219,8 @@ func TestFetchTxsFromKeys(t *testing.T) {
 
 	reactor.InitPeer(peer)
 
-	go func() {
-		reactor.ReceiveEnvelope(p2p.Envelope{
-			Src:       peer,
-			Message:   &memproto.Txs{Txs: txs},
-			ChannelID: mempool.MempoolChannel,
-		})
-	}()
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	resultTxs, err := reactor.FetchTxsFromKeys(ctx, blockID, keys)
 	require.NoError(t, err)
