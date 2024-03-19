@@ -369,6 +369,12 @@ func subscribeToVoter(cs *State, addr []byte) <-chan cmtpubsub.Message {
 
 func newState(state sm.State, pv types.PrivValidator, app abci.Application) *State {
 	config := cfg.ResetTestRoot("consensus_state_test")
+	cs, _ := newStateWithConfig(config, state, pv, app)
+	return cs
+}
+
+func newStateWithPool(state sm.State, pv types.PrivValidator, app abci.Application) (*State, mempl.Mempool) {
+	config := cfg.ResetTestRoot("consensus_state_test")
 	return newStateWithConfig(config, state, pv, app)
 }
 
@@ -377,7 +383,7 @@ func newStateWithConfig(
 	state sm.State,
 	pv types.PrivValidator,
 	app abci.Application,
-) *State {
+) (*State, mempl.Mempool) {
 	blockDB := dbm.NewMemDB()
 	return newStateWithConfigAndBlockStore(thisConfig, state, pv, app, blockDB)
 }
@@ -388,7 +394,7 @@ func newStateWithConfigAndBlockStore(
 	pv types.PrivValidator,
 	app abci.Application,
 	blockDB dbm.DB,
-) *State {
+) (*State, mempl.Mempool) {
 	// Get BlockStore
 	blockStore := store.NewBlockStore(blockDB)
 
@@ -460,7 +466,7 @@ func newStateWithConfigAndBlockStore(
 		panic(err)
 	}
 	cs.SetEventBus(eventBus)
-	return cs
+	return cs, mempool
 }
 
 func loadPrivValidator(config *cfg.Config) *privval.FilePV {
@@ -487,6 +493,23 @@ func randState(nValidators int) (*State, []*validatorStub) {
 	incrementHeight(vss[1:]...)
 
 	return cs, vss
+}
+
+func randStateWithMempool(nValidators int, c *cfg.Config) (*State, mempl.Mempool) {
+	// Get State
+	state, privVals := randGenesisState(nValidators, false, 10)
+
+	vss := make([]*validatorStub, nValidators)
+
+	cs, m := newStateWithConfig(c, state, privVals[0], counter.NewApplication(true))
+
+	for i := 0; i < nValidators; i++ {
+		vss[i] = newValidatorStub(privVals[i], int32(i))
+	}
+	// since cs1 starts at 1
+	incrementHeight(vss[1:]...)
+
+	return cs, m
 }
 
 //-------------------------------------------------------------------------------
@@ -753,7 +776,7 @@ func randConsensusNet(nValidators int, testName string, tickerFunc func() Timeou
 		vals := types.TM2PB.ValidatorUpdates(state.Validators)
 		app.InitChain(abci.RequestInitChain{Validators: vals})
 
-		css[i] = newStateWithConfigAndBlockStore(thisConfig, state, privVals[i], app, stateDB)
+		css[i], _ = newStateWithConfigAndBlockStore(thisConfig, state, privVals[i], app, stateDB)
 		css[i].SetTimeoutTicker(tickerFunc())
 		css[i].SetLogger(logger.With("validator", i, "module", "consensus"))
 	}
@@ -814,7 +837,7 @@ func randConsensusNetWithPeers(
 		app.InitChain(abci.RequestInitChain{Validators: vals})
 		// sm.SaveState(stateDB,state)	//height 1's validatorsInfo already saved in LoadStateFromDBOrGenesisDoc above
 
-		css[i] = newStateWithConfig(thisConfig, state, privVal, app)
+		css[i], _ = newStateWithConfig(thisConfig, state, privVal, app)
 		css[i].SetTimeoutTicker(tickerFunc())
 		css[i].SetLogger(logger.With("validator", i, "module", "consensus"))
 	}

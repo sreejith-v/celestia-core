@@ -71,7 +71,7 @@ func startNewStateAndWaitForBlock(t *testing.T, consensusReplayConfig *cfg.Confi
 	logger := log.TestingLogger()
 	state, _ := stateStore.LoadFromDBOrGenesisFile(consensusReplayConfig.GenesisFile())
 	privValidator := loadPrivValidator(consensusReplayConfig)
-	cs := newStateWithConfigAndBlockStore(
+	cs, _ := newStateWithConfigAndBlockStore(
 		consensusReplayConfig,
 		state,
 		privValidator,
@@ -172,7 +172,7 @@ LOOP:
 		state, err := sm.MakeGenesisStateFromFile(consensusReplayConfig.GenesisFile())
 		require.NoError(t, err)
 		privValidator := loadPrivValidator(consensusReplayConfig)
-		cs := newStateWithConfigAndBlockStore(
+		cs, _ := newStateWithConfigAndBlockStore(
 			consensusReplayConfig,
 			state,
 			privValidator,

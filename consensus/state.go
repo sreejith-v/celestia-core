@@ -1226,7 +1226,7 @@ func (cs *State) defaultDecideProposal(height int64, round int32) {
 
 		for i := 0; i < int(blockParts.Header().Total); i++ {
 			part := blockParts.GetPart(i)
-			cs.Logger.Info("proposer created block part", "i", i, "part", part)
+			cs.Logger.Debug("proposer created block part", "i", i, "part", part)
 		}
 
 		block.Txs = types.ToTxs(keys)
@@ -2042,6 +2042,10 @@ func (cs *State) addCompactBlock(msg *CompactBlockMessage) error {
 		for _, tx := range block.Data.Txs {
 			cs.Logger.Info("broken tx", "len", len(tx), "tx", tx.String())
 
+		}
+		for i := 0; i < int(partSet.Header().Total); i++ {
+			part := partSet.GetPart(i)
+			cs.Logger.Debug("proposer created block part", "i", i, "part", part)
 		}
 		cs.Logger.Info("broken compact block", "txs", compactBlockLen, "txsss", msg.Block.Txs)
 		cs.Logger.Info("broken header", "header", block.Header.StringIndented("  "))

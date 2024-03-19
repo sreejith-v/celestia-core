@@ -12,11 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/tendermint/tendermint/abci/example/counter"
+	cfg "github.com/tendermint/tendermint/config"
 	cstypes "github.com/tendermint/tendermint/consensus/types"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/log"
 	cmtpubsub "github.com/tendermint/tendermint/libs/pubsub"
 	cmtrand "github.com/tendermint/tendermint/libs/rand"
+	mempl "github.com/tendermint/tendermint/mempool"
 	p2pmock "github.com/tendermint/tendermint/p2p/mock"
 	cmtproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"github.com/tendermint/tendermint/types"
@@ -1898,6 +1900,45 @@ func TestStateOutputVoteStats(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 	}
 
+}
+
+func TestAddCompactBlock(t *testing.T) {
+	config := cfg.ResetTestRoot("consensus_state_test")
+	config.Mempool.Version = "v2"
+	cs, mempool := randStateWithMempool(2, config)
+
+	txs := []types.Tx{}
+	keys := make([][]byte, 0, len(txs))
+	for _, tx := range txs {
+		k := tx.Key()
+		keys = append(keys, k[:])
+		err := mempool.CheckTx(tx, nil, mempl.TxInfo{})
+		require.NoError(t, err)
+	}
+	// create a block
+	block := cs.createProposalBlock()
+
+	blockParts := block.MakePartSet(types.BlockPartSizeBytes)
+
+	rawtxs, err := cs.txFetcher.FetchTxsFromKeys(context.Background(), block.Header.Hash(), keys)
+	require.NoError(t, err)
+
+	d, err := types.DataFromProto(&cmtproto.Data{
+		Txs:  rawtxs,
+		Hash: block.Header.DataHash,
+	})
+	require.NoError(t, err)
+
+	b2 := types.Block{
+		Header:     block.Header,
+		Data:       d,
+		LastCommit: block.LastCommit,
+		Evidence:   block.Evidence,
+	}
+
+	b2.Hash()
+
+	require.True(t, blockParts.HasHeader(b2.MakePartSet(types.BlockPartSizeBytes).Header()))
 }
 
 func TestSignSameVoteTwice(t *testing.T) {
