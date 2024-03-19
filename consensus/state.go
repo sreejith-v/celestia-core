@@ -3,7 +3,6 @@ package consensus
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -1225,22 +1224,6 @@ func (cs *State) defaultDecideProposal(height int64, round int32) {
 
 		cs.Logger.Info("proposer created compact block", "txs len", len(keys), "keys", keys)
 
-		for i := 0; i < int(blockParts.Header().Total); i++ {
-			part := blockParts.GetPart(i)
-			cs.Logger.Debug("proposer created block part", "i", i, "part", part)
-			pp, err := part.ToProto()
-			if err != nil {
-				cs.Logger.Error("failed to convert part to proto", "err", err)
-				return
-			}
-			bpp, err := pp.Marshal()
-			if err != nil {
-				cs.Logger.Error("failed to marshal block part", "err", err)
-				return
-			}
-			schema.WriteDump(cs.traceClient, fmt.Sprintf("proposal_block_part-%d", i), hex.EncodeToString(bpp))
-		}
-
 		block.Txs = types.ToTxs(keys)
 	}
 
@@ -1981,7 +1964,6 @@ func (cs *State) defaultSetProposal(proposal *types.Proposal) error {
 
 func (cs *State) addCompactBlock(msg *CompactBlockMessage) error {
 	compactBlock := msg.Block
-	compactBlockLen := len(compactBlock.Data.Txs)
 	height := compactBlock.Height
 
 	if cs.ProposalBlock != nil {
@@ -2040,24 +2022,6 @@ func (cs *State) addCompactBlock(msg *CompactBlockMessage) error {
 		Hash: block.Header.DataHash,
 	})
 
-	parts := block.MakePartSet(types.BlockPartSizeBytes)
-
-	for i := 0; i < int(parts.Header().Total); i++ {
-		part := parts.GetPart(i)
-		cs.Logger.Debug("compact block part", "i", i, "part", part)
-		pp, err := part.ToProto()
-		if err != nil {
-			cs.Logger.Error("failed to convert part to proto", "err", err)
-			continue
-		}
-		bpp, err := pp.Marshal()
-		if err != nil {
-			cs.Logger.Error("failed to marshal block part", "err", err)
-			continue
-		}
-		schema.WriteDump(cs.traceClient, fmt.Sprintf("compact_block_part-%d", i), hex.EncodeToString(bpp))
-	}
-
 	if err := block.ValidateBasic(); err != nil {
 		return fmt.Errorf("received invalid block: %w", err)
 	}
@@ -2069,18 +2033,6 @@ func (cs *State) addCompactBlock(msg *CompactBlockMessage) error {
 	// check that the part set header matched that of the
 	partSet := block.MakePartSet(types.BlockPartSizeBytes)
 	if !partSet.HasHeader(cs.Proposal.BlockID.PartSetHeader) {
-		for _, tx := range block.Data.Txs {
-			cs.Logger.Info("broken tx", "len", len(tx), "tx", tx.String())
-
-		}
-		for i := 0; i < int(partSet.Header().Total); i++ {
-			part := partSet.GetPart(i)
-			cs.Logger.Debug("proposer created block part", "i", i, "part", part)
-		}
-		cs.Logger.Info("broken compact block", "txs", compactBlockLen, "txsss", msg.Block.Txs)
-		cs.Logger.Info("broken header", "header", block.Header.StringIndented("  "))
-		cs.Logger.Info("broken last commit", "last_commit", block.LastCommit.StringIndented("  "))
-		cs.Logger.Info("broken evidence", "evidence", block.Evidence.StringIndented("  "))
 		return fmt.Errorf("received compact block with part set header [%v] that does not match proposal [%v]", partSet.Header(), cs.Proposal.BlockID.PartSetHeader)
 	}
 

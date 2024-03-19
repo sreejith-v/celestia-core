@@ -1,6 +1,8 @@
 package types
 
 import (
+	"encoding/hex"
+	"fmt"
 	"io"
 	"testing"
 
@@ -9,6 +11,7 @@ import (
 
 	"github.com/tendermint/tendermint/crypto/merkle"
 	cmtrand "github.com/tendermint/tendermint/libs/rand"
+	cmtproto "github.com/tendermint/tendermint/proto/tendermint/types"
 )
 
 const (
@@ -194,4 +197,48 @@ func TestPartProtoBuf(t *testing.T) {
 			require.Equal(t, tc.ps1, p, tc.msg)
 		}
 	}
+}
+
+var (
+	Val1Prop = "1281030ad0020a08080b10c4b6bcc801120a636f6d706163742d32321801220c0899d6e6af0610ccc59494022a0212003220e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b8553a203d96b7d238e7e0456f6af8e7cdf0a67bd6cf9c2089ecb559c659dcaa1f8803534220ae6420fc9ae285312bc6fefdb788141552826d9865da97aa5a1a02ad76a676544a20ae6420fc9ae285312bc6fefdb788141552826d9865da97aa5a1a02ad76a676545220614e3fdce077a12dc945c5dd8c7c14c777e56ab66c7f44ef1595f121c89437595a20e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b8556220e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b8556a20e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855721444a724c895430366b2b1165165a12a8d28e0f02a1224280132203d96b7d238e7e0456f6af8e7cdf0a67bd6cf9c2089ecb559c659dcaa1f8803531a0022041a0212001a2408011a20e811d08ae8e0ed1bd23019ee7b4c957b6d6adbd1039cd8e44cc1fda389267925"
+	Val1Comp = "12ff020ad0020a08080b10c4b6bcc801120a636f6d706163742d32321801220c0899d6e6af0610ccc59494022a0212003220e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b8553a203d96b7d238e7e0456f6af8e7cdf0a67bd6cf9c2089ecb559c659dcaa1f8803534220ae6420fc9ae285312bc6fefdb788141552826d9865da97aa5a1a02ad76a676544a20ae6420fc9ae285312bc6fefdb788141552826d9865da97aa5a1a02ad76a676545220614e3fdce077a12dc945c5dd8c7c14c777e56ab66c7f44ef1595f121c89437595a20e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b8556220e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b8556a20e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855721444a724c895430366b2b1165165a12a8d28e0f02a122232203d96b7d238e7e0456f6af8e7cdf0a67bd6cf9c2089ecb559c659dcaa1f8803531a0022041a0212001a2408011a202ff9fcfee1b0b84ae23bdf644e09c875c5c2112159ba94c3417a36b4fee2b37c"
+)
+
+func TestDebug(t *testing.T) {
+	parts := []string{
+		Val1Prop,
+		Val1Comp,
+	}
+
+	blocks := make([]*Block, 0, len(parts))
+
+	for _, sp := range parts {
+		p := &cmtproto.Part{}
+		d, err := hex.DecodeString(sp)
+		require.NoError(t, err)
+		err = p.Unmarshal(d)
+		require.NoError(t, err)
+
+		pp, err := PartFromProto(p)
+		require.NoError(t, err)
+
+		r := NewPartSetReader([]*Part{pp})
+
+		bz, err := io.ReadAll(r)
+		require.NoError(t, err)
+
+		var protoBlock cmtproto.Block
+		err = protoBlock.Unmarshal(bz)
+		require.NoError(t, err)
+
+		bb, err := BlockFromProto(&protoBlock)
+		require.NoError(t, err)
+
+		blocks = append(blocks, bb)
+
+		fmt.Println(bb.SquareSize)
+		fmt.Println("------------------------------------------------")
+	}
+
+	require.Equal(t, blocks[0], blocks[1])
 }
