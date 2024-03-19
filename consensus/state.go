@@ -1222,6 +1222,13 @@ func (cs *State) defaultDecideProposal(height int64, round int32) {
 			return
 		}
 
+		cs.Logger.Info("proposer created compact block", "txs len", len(keys), "keys", keys)
+
+		for i := 0; i < int(blockParts.Header().Total); i++ {
+			part := blockParts.GetPart(i)
+			cs.Logger.Info("proposer created block part", "i", i, "part", part)
+		}
+
 		block.Txs = types.ToTxs(keys)
 	}
 
@@ -1962,6 +1969,7 @@ func (cs *State) defaultSetProposal(proposal *types.Proposal) error {
 
 func (cs *State) addCompactBlock(msg *CompactBlockMessage) error {
 	compactBlock := msg.Block
+	compactBlockLen := len(compactBlock.Data.Txs)
 	height := compactBlock.Height
 
 	if cs.ProposalBlock != nil {
@@ -2035,6 +2043,7 @@ func (cs *State) addCompactBlock(msg *CompactBlockMessage) error {
 			cs.Logger.Info("broken tx", "len", len(tx), "tx", tx.String())
 
 		}
+		cs.Logger.Info("broken compact block", "txs", compactBlockLen, "txsss", msg.Block.Txs)
 		cs.Logger.Info("broken header", "header", block.Header.StringIndented("  "))
 		cs.Logger.Info("broken last commit", "last_commit", block.LastCommit.StringIndented("  "))
 		cs.Logger.Info("broken evidence", "evidence", block.Evidence.StringIndented("  "))
