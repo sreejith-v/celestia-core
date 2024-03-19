@@ -3,6 +3,7 @@ package consensus
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -1227,6 +1228,17 @@ func (cs *State) defaultDecideProposal(height int64, round int32) {
 		for i := 0; i < int(blockParts.Header().Total); i++ {
 			part := blockParts.GetPart(i)
 			cs.Logger.Debug("proposer created block part", "i", i, "part", part)
+			pp, err := part.ToProto()
+			if err != nil {
+				cs.Logger.Error("failed to convert part to proto", "err", err)
+				return
+			}
+			bpp, err := pp.Marshal()
+			if err != nil {
+				cs.Logger.Error("failed to marshal block part", "err", err)
+				return
+			}
+			schema.WriteDump(cs.traceClient, fmt.Sprintf("proposal_block_part-%d", i), hex.EncodeToString(bpp))
 		}
 
 		block.Txs = types.ToTxs(keys)
@@ -2027,6 +2039,24 @@ func (cs *State) addCompactBlock(msg *CompactBlockMessage) error {
 		Txs:  txs,
 		Hash: block.Header.DataHash,
 	})
+
+	parts := block.MakePartSet(types.BlockPartSizeBytes)
+
+	for i := 0; i < int(parts.Header().Total); i++ {
+		part := parts.GetPart(i)
+		cs.Logger.Debug("compact block part", "i", i, "part", part)
+		pp, err := part.ToProto()
+		if err != nil {
+			cs.Logger.Error("failed to convert part to proto", "err", err)
+			continue
+		}
+		bpp, err := pp.Marshal()
+		if err != nil {
+			cs.Logger.Error("failed to marshal block part", "err", err)
+			continue
+		}
+		schema.WriteDump(cs.traceClient, fmt.Sprintf("compact_block_part-%d", i), hex.EncodeToString(bpp))
+	}
 
 	if err := block.ValidateBasic(); err != nil {
 		return fmt.Errorf("received invalid block: %w", err)
