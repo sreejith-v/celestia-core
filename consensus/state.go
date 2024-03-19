@@ -877,7 +877,7 @@ func (cs *State) handleMsg(mi msgInfo) {
 		err = cs.setProposal(msg.Proposal)
 
 	case *CompactBlockMessage:
-		err = cs.addCompactBlock(msg, peerID)
+		err = cs.addCompactBlock(msg)
 
 		if err == nil {
 			cs.handleCompleteProposal(msg.Block.Height)
@@ -1960,7 +1960,7 @@ func (cs *State) defaultSetProposal(proposal *types.Proposal) error {
 	return nil
 }
 
-func (cs *State) addCompactBlock(msg *CompactBlockMessage, peerID p2p.ID) error {
+func (cs *State) addCompactBlock(msg *CompactBlockMessage) error {
 	compactBlock := msg.Block
 	height := compactBlock.Height
 
@@ -2031,6 +2031,13 @@ func (cs *State) addCompactBlock(msg *CompactBlockMessage, peerID p2p.ID) error 
 	// check that the part set header matched that of the
 	partSet := block.MakePartSet(types.BlockPartSizeBytes)
 	if !partSet.HasHeader(cs.Proposal.BlockID.PartSetHeader) {
+		for _, tx := range block.Data.Txs {
+			cs.Logger.Info("broken tx", "len", len(tx), "tx", tx.String())
+
+		}
+		cs.Logger.Info("broken header", "header", block.Header.StringIndented("  "))
+		cs.Logger.Info("broken last commit", "last_commit", block.LastCommit.StringIndented("  "))
+		cs.Logger.Info("broken evidence", "evidence", block.Evidence.StringIndented("  "))
 		return fmt.Errorf("received compact block with part set header [%v] that does not match proposal [%v]", partSet.Header(), cs.Proposal.BlockID.PartSetHeader)
 	}
 
