@@ -828,7 +828,7 @@ func NewNode(config *cfg.Config,
 
 	// Make MempoolReactor
 	mempool, mempoolReactor := createMempoolAndMempoolReactor(config, proxyApp, state, memplMetrics, logger, influxdbClient)
-
+	logger.Info("mempool is nil", "mempool", mempool == nil, "mempoolReactor", mempoolReactor == nil)
 	// Make Evidence Reactor
 	evidenceReactor, evidencePool, err := createEvidenceReactor(config, dbProvider, stateDB, blockStore, logger)
 	if err != nil {
