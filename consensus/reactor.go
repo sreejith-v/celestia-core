@@ -285,6 +285,7 @@ func (conR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			ps.ApplyHasVoteMessage(msg)
 		case *HasProposalBlockPartMessage:
 			ps.ApplyHasProposalBlockPartMessage(msg)
+			schema.WriteHasBlockPart(conR.traceClient, msg.Height, msg.Round, e.Src.ID(), uint32(msg.Index), schema.TransferTypeDownload)
 		case *VoteSetMaj23Message:
 			cs := conR.conS
 			cs.mtx.Lock()
@@ -551,6 +552,7 @@ func (conR *Reactor) broadcastHasProposalBlockPartMessage(partMsg *BlockPartMess
 		ChannelID: StateChannel,
 		Message:   msg,
 	})
+	schema.WriteHasBlockPart(conR.traceClient, partMsg.Height, partMsg.Round, p2p.ID("broadcast"), partMsg.Part.Index, schema.TransferTypeUpload)
 }
 
 func makeRoundStepMessage(rs *cstypes.RoundState) (nrsMsg *cmtcons.NewRoundStep) {

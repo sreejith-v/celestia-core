@@ -180,3 +180,40 @@ func WriteVote(client *trace.Client,
 		TransferTypeFieldKey:     transferType,
 	})
 }
+
+// Schema constants for the "consensus_block_parts" table.
+const (
+	// HasBlockPartTable is the name of the table that stores the consensus block
+	// parts.
+	// following schema:
+	//
+	// | time | height | round | index | peer | transfer type |
+	HasBlockPartTable = "consensus_has_block_part"
+)
+
+// WriteBlockPart writes a tracing point for a BlockPart using the predetermined
+// schema for consensus state tracing. This is used to create a table in the
+// following schema:
+//
+// | time | height | round | index | peer | transfer type |
+func WriteHasBlockPart(
+	client *trace.Client,
+	height int64,
+	round int32,
+	peer p2p.ID,
+	index uint32,
+	transferType string,
+) {
+	// this check is redundant to what is checked during WritePoint, although it
+	// is an optimization to avoid allocations from the map of fields.
+	if !client.IsCollecting(HasBlockPartTable) {
+		return
+	}
+	client.WritePoint(HasBlockPartTable, map[string]interface{}{
+		HeightFieldKey:         height,
+		RoundFieldKey:          round,
+		BlockPartIndexFieldKey: index,
+		PeerFieldKey:           peer,
+		TransferTypeFieldKey:   transferType,
+	})
+}
