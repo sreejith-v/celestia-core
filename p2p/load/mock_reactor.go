@@ -165,3 +165,15 @@ func (mr *MockReactor) FillChannel(chID byte, count, msgSize int) (bool, int, ti
 	end := time.Now()
 	return true, count, end.Sub(start)
 }
+
+func (mr *MockReactor) FloodChannel(wg *sync.WaitGroup, chID byte, d time.Duration) {
+	wg.Add(1)
+	go func(d time.Duration) {
+		start := time.Now()
+		defer wg.Done()
+		for time.Since(start) < d {
+			mr.SendBytes(chID, 10000000)
+		}
+
+	}(d)
+}

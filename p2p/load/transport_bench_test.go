@@ -49,20 +49,23 @@ func TestTransportBench(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second) // wait for the nodes to connect
 
-	// reactor1.FillChannel(SecondChannel, 1000, 10000)
-	// reactor1.FillChannel(ThirdChannel, 1000, 10000)
-	time.Sleep(100 * time.Millisecond)     // wait for the messages to start sending
+	reactor1.FillChannel(SecondChannel, 1000, 10000)
+	reactor1.FillChannel(ThirdChannel, 1000, 10000)
+
+	time.Sleep(100 * time.Millisecond) // wait for the messages to start sending
+
 	reactor1.SendBytes(FirstChannel, 2000) // send a messasge on the first channel and see how long it takes to receive
 	sendTime = time.Now()
 	time.Sleep(5 * time.Second) // wait for the messages to be send
 	require.Greater(t, len(reactor2.Traces), 0)
-	// VizBandwidth("test.png", reactor2.Traces)
+
+	VizBandwidth("test.png", reactor2.Traces)
 	// VizTotalBandwidth("test2.png", reactor2.Traces)
-	for _, m := range reactor2.Traces {
-		if m.Channel == FirstChannel {
-			fmt.Println(m.ReceiveTime.Sub(sendTime).Milliseconds())
-		}
-	}
+	// for _, m := range reactor2.Traces {
+	// 	if m.Channel == FirstChannel {
+	// 		fmt.Println(m.ReceiveTime.Sub(sendTime).Milliseconds())
+	// 	}
+	// }
 }
 
 /*
