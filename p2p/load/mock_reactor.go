@@ -7,15 +7,23 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	tmrand "github.com/tendermint/tendermint/libs/rand"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/conn"
 	protomem "github.com/tendermint/tendermint/proto/tendermint/mempool"
 )
 
 const (
-	FirstChannel  = byte(0x01)
-	SecondChannel = byte(0x02)
-	ThirdChannel  = byte(0x03)
+	FirstChannel   = byte(0x01)
+	SecondChannel  = byte(0x02)
+	ThirdChannel   = byte(0x03)
+	FourthChannel  = byte(0x04)
+	FifthChannel   = byte(0x05)
+	SixthChannel   = byte(0x06)
+	SeventhChannel = byte(0x07)
+	EighthChannel  = byte(0x08)
+	NinthChannel   = byte(0x09)
+	TenthChannel   = byte(0x10)
 )
 
 var priorities = make(map[byte]int)
@@ -29,25 +37,81 @@ func init() {
 var defaultTestChannels = []*p2p.ChannelDescriptor{
 	{
 		ID:                  FirstChannel,
-		Priority:            10,
-		SendQueueCapacity:   2000,
-		RecvBufferCapacity:  100,
+		Priority:            1,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  1000,
 		RecvMessageCapacity: 2000000,
 		MessageType:         &protomem.Txs{},
 	},
 	{
 		ID:                  SecondChannel,
-		Priority:            5,
-		SendQueueCapacity:   1000,
-		RecvBufferCapacity:  100,
+		Priority:            3,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  1000,
 		RecvMessageCapacity: 2000000,
 		MessageType:         &protomem.Txs{},
 	},
 	{
 		ID:                  ThirdChannel,
 		Priority:            5,
-		SendQueueCapacity:   1000,
-		RecvBufferCapacity:  100,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  1000,
+		RecvMessageCapacity: 2000000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  FourthChannel,
+		Priority:            7,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  1000,
+		RecvMessageCapacity: 2000000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  FifthChannel,
+		Priority:            9,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  1000,
+		RecvMessageCapacity: 2000000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  SixthChannel,
+		Priority:            11,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  1000,
+		RecvMessageCapacity: 2000000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  SeventhChannel,
+		Priority:            13,
+		SendQueueCapacity:   100,
+		RecvBufferCapacity:  1000,
+		RecvMessageCapacity: 2000000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  EighthChannel,
+		Priority:            15,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  1000,
+		RecvMessageCapacity: 2000000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  NinthChannel,
+		Priority:            13,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  1000,
+		RecvMessageCapacity: 2000000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  TenthChannel,
+		Priority:            15,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  1000,
 		RecvMessageCapacity: 2000000,
 		MessageType:         &protomem.Txs{},
 	},
@@ -172,7 +236,7 @@ func (mr *MockReactor) FloodChannel(wg *sync.WaitGroup, chID byte, d time.Durati
 		start := time.Now()
 		defer wg.Done()
 		for time.Since(start) < d {
-			mr.SendBytes(chID, 10000000)
+			mr.SendBytes(chID, tmrand.Intn(100000))
 		}
 
 	}(d)

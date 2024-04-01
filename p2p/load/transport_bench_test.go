@@ -2,6 +2,7 @@ package load
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,8 +26,8 @@ var sendTime time.Time
 func TestTransportBench(t *testing.T) {
 	cfg := config.DefaultP2PConfig()
 	mcfg := conn.DefaultMConnConfig()
-	mcfg.SendRate = 1000000
-	mcfg.RecvRate = 1000000
+	mcfg.SendRate = 100000000
+	mcfg.RecvRate = 100000000
 
 	reactor1 := NewMockReactor(defaultTestChannels)
 	node1, err := newnode(*cfg, mcfg, reactor1)
@@ -49,23 +50,145 @@ func TestTransportBench(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(1 * time.Second) // wait for the nodes to connect
 
-	reactor1.FillChannel(SecondChannel, 1000, 10000)
-	reactor1.FillChannel(ThirdChannel, 1000, 10000)
+	var wg sync.WaitGroup
+	reactor1.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, EighthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, EighthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, EighthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, EighthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, EighthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, EighthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, EighthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor1.FloodChannel(&wg, EighthChannel, time.Second*10)
+
+	reactor2.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, EighthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, EighthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, EighthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, EighthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, EighthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, EighthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SeventhChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, EighthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FirstChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SecondChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, ThirdChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FourthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, FifthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, SixthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, NinthChannel, time.Second*10)
+	reactor2.FloodChannel(&wg, TenthChannel, time.Second*10)
 
 	time.Sleep(100 * time.Millisecond) // wait for the messages to start sending
 
-	reactor1.SendBytes(FirstChannel, 2000) // send a messasge on the first channel and see how long it takes to receive
-	sendTime = time.Now()
-	time.Sleep(5 * time.Second) // wait for the messages to be send
-	require.Greater(t, len(reactor2.Traces), 0)
+	wg.Wait()
 
-	VizBandwidth("test.png", reactor2.Traces)
-	// VizTotalBandwidth("test2.png", reactor2.Traces)
-	// for _, m := range reactor2.Traces {
-	// 	if m.Channel == FirstChannel {
-	// 		fmt.Println(m.ReceiveTime.Sub(sendTime).Milliseconds())
-	// 	}
-	// }
+	time.Sleep(1 * time.Second) // wait for the messages to finish sending
+
+	// VizBandwidth("test.png", reactor2.Traces)
+	VizTotalBandwidth("test2.png", reactor2.Traces)
 }
 
 /*
