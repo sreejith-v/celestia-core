@@ -52,6 +52,7 @@ require (
 	golang.org/x/crypto v0.21.0
 	golang.org/x/net v0.23.0
 	gonum.org/v1/gonum v0.8.2
+	gonum.org/v1/plot v0.0.0-20190515093506-e2840ee46a6b
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
 )
@@ -70,6 +71,7 @@ require (
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/OpenPeeDeeP/depguard v1.1.1 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
+	github.com/ajstarks/svgo v0.0.0-20180226025133-644b8db467af // indirect
 	github.com/alexkohler/prealloc v1.0.0 // indirect
 	github.com/alingse/asasalint v0.0.11 // indirect
 	github.com/ashanbrown/forbidigo v1.3.0 // indirect
@@ -117,6 +119,7 @@ require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/firefart/nonamedreturns v1.0.4 // indirect
+	github.com/fogleman/gg v1.2.1-0.20190220221249-0403632d5b90 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
 	github.com/go-chi/chi/v5 v5.0.7 // indirect
@@ -135,6 +138,7 @@ require (
 	github.com/go-xmlfmt/xmlfmt v0.0.0-20191208150333-d5b6f63a941b // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
+	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/golangci/check v0.0.0-20180506172741-cfe4005ccda2 // indirect
@@ -171,6 +175,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/julz/importas v0.1.0 // indirect
+	github.com/jung-kurt/gofpdf v1.0.3-0.20190309125859-24315acbbda5 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/kisielk/errcheck v1.6.2 // indirect
 	github.com/kisielk/gotool v1.0.0 // indirect
@@ -275,6 +280,7 @@ require (
 	go.uber.org/zap v1.23.0 // indirect
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 	golang.org/x/exp/typeparams v0.0.0-20220827204233-334a2380cb91 // indirect
+	golang.org/x/image v0.0.0-20190802002840-cff245a6509b // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect

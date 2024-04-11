@@ -32,6 +32,18 @@ func (m ABCI) Table() string {
 	return ABCITable
 }
 
+func (m ABCI) HasHeight() int64 {
+	return m.Height
+}
+
+func (m ABCI) HasRound() int32 {
+	return m.Round
+}
+
+func (m ABCI) HasTraceType() string {
+	return m.TraceType
+}
+
 // WriteABCI writes a trace for an ABCI method.
 func WriteABCI(client trace.Tracer, traceType ABCIUpdate, height int64, round int32) {
 	client.Write(ABCI{

@@ -40,6 +40,19 @@ func (p PeerUpdate) Table() string {
 	return PeersTable
 }
 
+// GetPeerID returns the peer id for the PeerUpdate struct.
+func (p PeerUpdate) GetPeer() string {
+	return p.PeerID
+}
+
+func (p PeerUpdate) GetAction() string {
+	return p.Action
+}
+
+func (p PeerUpdate) GetReason() string {
+	return p.Reason
+}
+
 // WritePeerUpdate writes a tracing point for a peer update using the predetermined
 // schema for p2p tracing.
 func WritePeerUpdate(client trace.Tracer, peerID string, action P2PPeerUpdate, reason string) {
@@ -59,6 +72,10 @@ func (s PendingBytes) Table() string {
 	return PendingBytesTable
 }
 
+func (pb PendingBytes) GetPeer() string {
+	return pb.PeerID
+}
+
 func WritePendingBytes(client trace.Tracer, peerID string, bytes map[byte]int) {
 	client.Write(PendingBytes{PeerID: peerID, Bytes: bytes})
 }
@@ -75,6 +92,14 @@ type ReceivedBytes struct {
 
 func (s ReceivedBytes) Table() string {
 	return ReceivedBytesTable
+}
+
+func (rb ReceivedBytes) GetPeer() string {
+	return rb.PeerID
+}
+
+func (rb ReceivedBytes) GetChannel() byte {
+	return rb.Channel
 }
 
 func WriteReceivedBytes(client trace.Tracer, peerID string, channel byte, bytes int) {

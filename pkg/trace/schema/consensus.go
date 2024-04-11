@@ -37,6 +37,18 @@ func (r RoundState) Table() string {
 	return RoundStateTable
 }
 
+func (r RoundState) GetHeight() int64 {
+	return r.Height
+}
+
+func (r RoundState) GetRound() int32 {
+	return r.Round
+}
+
+func (r RoundState) GetStep() uint8 {
+	return r.Step
+}
+
 // WriteRoundState writes a tracing point for a tx using the predetermined
 // schema for consensus state tracing.
 func WriteRoundState(client trace.Tracer, height int64, round int32, step uint8) {
@@ -63,6 +75,30 @@ type BlockPart struct {
 // Table returns the table name for the BlockPart struct.
 func (b BlockPart) Table() string {
 	return BlockPartsTable
+}
+
+func (b BlockPart) GetHeight() int64 {
+	return b.Height
+}
+
+func (b BlockPart) GetRound() int32 {
+	return b.Round
+}
+
+func (b BlockPart) GetIndex() int32 {
+	return b.Index
+}
+
+func (b BlockPart) GetPeer() string {
+	return b.Peer
+}
+
+func (b BlockPart) GetTransferType() TransferType {
+	return b.TransferType
+}
+
+func (b BlockPart) GetCatchup() bool {
+	return b.Catchup
 }
 
 // WriteBlockPart writes a tracing point for a BlockPart using the predetermined
@@ -115,6 +151,26 @@ func (v Vote) Table() string {
 	return VoteTable
 }
 
+func (v Vote) GetHeight() int64 {
+	return v.Height
+}
+
+func (v Vote) GetRound() int32 {
+	return v.Round
+}
+
+func (v Vote) GetVoteType() string {
+	return v.VoteType
+}
+
+func (v Vote) GetPeer() string {
+	return v.Peer
+}
+
+func (v Vote) GetTransferType() TransferType {
+	return v.TransferType
+}
+
 // WriteVote writes a tracing point for a vote using the predetermined
 // schema for consensus vote tracing.
 func WriteVote(client trace.Tracer,
@@ -155,6 +211,14 @@ type BlockSummary struct {
 
 func (b BlockSummary) Table() string {
 	return BlockTable
+}
+
+func (b BlockSummary) GetHeight() int64 {
+	return b.Height
+}
+
+func (b BlockSummary) GetPoposer() string {
+	return b.Proposer
 }
 
 // WriteBlockSummary writes a tracing point for a block using the predetermined
@@ -198,6 +262,26 @@ func (c ConsensusState) Table() string {
 	return ConsensusStateTable
 }
 
+func (c ConsensusState) GetHeight() int64 {
+	return c.Height
+}
+
+func (c ConsensusState) GetRound() int32 {
+	return c.Round
+}
+
+func (c ConsensusState) GetPeer() string {
+	return c.Peer
+}
+
+func (c ConsensusState) GetTransferType() TransferType {
+	return c.TransferType
+}
+
+func (c ConsensusState) GetUpdateType() string {
+	return c.UpdateType
+}
+
 func WriteConsensusState(
 	client trace.Tracer,
 	height int64,
@@ -228,6 +312,22 @@ type Proposal struct {
 
 func (p Proposal) Table() string {
 	return ProposalTable
+}
+
+func (p Proposal) GetHeight() int64 {
+	return p.Height
+}
+
+func (p Proposal) GetRound() int32 {
+	return p.Round
+}
+
+func (p Proposal) GetPeer() string {
+	return p.Peer
+}
+
+func (p Proposal) GetTransferType() TransferType {
+	return p.TransferType
 }
 
 func WriteProposal(
