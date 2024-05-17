@@ -58,7 +58,8 @@ func TestLocalTracerReadWrite(t *testing.T) {
 
 	events, err := DecodeFile[testEvent](f)
 	require.NoError(t, err)
-	done()
+	err = done()
+	require.NoError(t, err)
 
 	// even though we've written twice, we expect only the first two events to be
 	// be written to the file. When reading the file, all writes are ignored.
@@ -77,7 +78,8 @@ func TestLocalTracerReadWrite(t *testing.T) {
 	require.NoError(t, err)
 	events, err = DecodeFile[testEvent](f)
 	require.NoError(t, err)
-	done()
+	err = done()
+	require.NoError(t, err)
 	require.Len(t, events, 4)
 	require.Equal(t, migenees, events[2].Msg)
 	require.Equal(t, pontivy, events[3].Msg)
@@ -112,7 +114,8 @@ func TestLocalTracerServerPull(t *testing.T) {
 	require.NoError(t, err)
 	originalBz, err := io.ReadAll(originalFile)
 	require.NoError(t, err)
-	done()
+	err = done()
+	require.NoError(t, err)
 
 	path := path.Join(newDir, testEventTable+".jsonl")
 	downloadedFile, err := os.Open(path)
@@ -133,6 +136,21 @@ func TestLocalTracerServerPull(t *testing.T) {
 	}
 }
 
+// TestReadPushConfigFromConfigFile tests reading the push config from the environment variables.
+func TestReadPushConfigFromEnvVars(t *testing.T) {
+	os.Setenv(PushBucketName, "bucket")
+	os.Setenv(PushRegion, "region")
+	os.Setenv(PushAccessKey, "access")
+	os.Setenv(PushKey, "secret")
+	os.Setenv(PushDelay, "10")
+
+	lt := setupLocalTracer(t, 0)
+	require.Equal(t, "bucket", lt.s3Config.BucketName)
+	require.Equal(t, "region", lt.s3Config.Region)
+	require.Equal(t, "access", lt.s3Config.AccessKey)
+	require.Equal(t, "secret", lt.s3Config.SecretKey)
+	require.Equal(t, int64(10), lt.s3Config.PushDelay)
+}
 func setupLocalTracer(t *testing.T, port int) *LocalTracer {
 	logger := log.NewNopLogger()
 	cfg := config.DefaultConfig()

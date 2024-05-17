@@ -9,15 +9,17 @@ import (
 
 // simple, thread-safe in memory store for transactions
 type store struct {
-	mtx   sync.RWMutex
-	bytes int64
-	txs   map[types.TxKey]*wrappedTx
+	mtx         sync.RWMutex
+	bytes       int64
+	txs         map[types.TxKey]*wrappedTx
+	reservedTxs map[types.TxKey]struct{}
 }
 
 func newStore() *store {
 	return &store{
-		bytes: 0,
-		txs:   make(map[types.TxKey]*wrappedTx),
+		bytes:       0,
+		txs:         make(map[types.TxKey]*wrappedTx),
+		reservedTxs: make(map[types.TxKey]struct{}),
 	}
 }
 
@@ -72,23 +74,27 @@ func (s *store) remove(txKey types.TxKey) bool {
 func (s *store) reserve(txKey types.TxKey) bool {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	_, has := s.txs[txKey]
-	if !has {
-		s.txs[txKey] = &wrappedTx{height: -1}
+	_, isReserved := s.reservedTxs[txKey]
+	if !isReserved {
+		s.reservedTxs[txKey] = struct{}{}
 		return true
 	}
 	return false
 }
 
-// release is called when a pending transaction failed
-// to enter the mempool. The empty element and key is removed.
+func (s *store) isReserved(txKey types.TxKey) bool {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	_, isReserved := s.reservedTxs[txKey]
+	return isReserved
+}
+
+// release is called at the end of the process of adding a transaction.
+// Regardless if it is added or not, the reserveTxs lookup map element is deleted.
 func (s *store) release(txKey types.TxKey) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	value, ok := s.txs[txKey]
-	if ok && value.isReserved() {
-		delete(s.txs, txKey)
-	}
+	delete(s.reservedTxs, txKey)
 }
 
 func (s *store) size() int {

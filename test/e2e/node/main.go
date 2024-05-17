@@ -130,7 +130,7 @@ func startNode(cfg *Config) error {
 		return fmt.Errorf("failed to setup config: %w", err)
 	}
 
-	cmtcfg.Instrumentation.TraceType = "noop"
+	cmtcfg.Instrumentation.TraceType = "local"
 
 	n, err := node.NewNode(cmtcfg,
 		privval.LoadOrGenFilePV(cmtcfg.PrivValidatorKeyFile(), cmtcfg.PrivValidatorStateFile()),

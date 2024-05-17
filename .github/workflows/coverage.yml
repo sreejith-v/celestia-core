@@ -49,7 +49,7 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: "1.22.2"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: technote-space/get-diff-action@v6
         with:
           PATTERNS: |
@@ -71,7 +71,7 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: "1.22.2"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: technote-space/get-diff-action@v6
         with:
           PATTERNS: |
