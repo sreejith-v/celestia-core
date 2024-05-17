@@ -33,6 +33,22 @@ func (m MempoolTx) Table() string {
 	return MempoolTxTable
 }
 
+func (m MempoolTx) GetTxHash() string {
+	return m.TxHash
+}
+
+func (m MempoolTx) GetPeer() string {
+	return m.Peer
+}
+
+func (m MempoolTx) GetSize() int {
+	return m.Size
+}
+
+func (m MempoolTx) GetTransferType() TransferType {
+	return m.TransferType
+}
+
 // WriteMempoolTx writes a tracing point for a tx using the predetermined
 // schema for mempool tracing.
 func WriteMempoolTx(client trace.Tracer, peer string, txHash []byte, transferType TransferType) {

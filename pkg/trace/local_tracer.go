@@ -31,6 +31,26 @@ type Event[T any] struct {
 	Msg       T         `json:"msg"`
 }
 
+func (e Event[T]) GetTable() string {
+	return e.Table
+}
+
+func (e Event[T]) GetTimestamp() time.Time {
+	return e.Timestamp
+}
+
+func (e Event[T]) GetMsg() T {
+	return e.Msg
+}
+
+func (e Event[T]) GetChainID() string {
+	return e.ChainID
+}
+
+func (e Event[T]) GetNodeID() string {
+	return e.NodeID
+}
+
 // NewEvent creates a new Event with the given chainID, nodeID, table, and msg.
 // It adds the current time as the timestamp.
 func NewEvent[T any](chainID, nodeID, table string, msg T) Event[T] {

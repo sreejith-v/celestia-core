@@ -40,6 +40,18 @@ func (p PeerUpdate) Table() string {
 	return PeersTable
 }
 
+func (p PeerUpdate) GetPeerID() string {
+	return p.PeerID
+}
+
+func (p PeerUpdate) GetAction() string {
+	return p.Action
+}
+
+func (p PeerUpdate) GetReason() string {
+	return p.Reason
+}
+
 // WritePeerUpdate writes a tracing point for a peer update using the predetermined
 // schema for p2p tracing.
 func WritePeerUpdate(client trace.Tracer, peerID string, action P2PPeerUpdate, reason string) {

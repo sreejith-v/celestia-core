@@ -115,6 +115,26 @@ func (v Vote) Table() string {
 	return VoteTable
 }
 
+func (v Vote) GetHeight() int64 {
+	return v.Height
+}
+
+func (v Vote) GetRound() int32 {
+	return v.Round
+}
+
+func (v Vote) GetPeer() string {
+	return v.Peer
+}
+
+func (v Vote) GetTransferType() TransferType {
+	return v.TransferType
+}
+
+func (v Vote) GetUpdateType() string {
+	return v.VoteType
+}
+
 // WriteVote writes a tracing point for a vote using the predetermined
 // schema for consensus vote tracing.
 func WriteVote(client trace.Tracer,
@@ -197,6 +217,26 @@ type ConsensusState struct {
 
 func (c ConsensusState) Table() string {
 	return ConsensusStateTable
+}
+
+func (c ConsensusState) GetHeight() int64 {
+	return c.Height
+}
+
+func (c ConsensusState) GetRound() int32 {
+	return c.Round
+}
+
+func (c ConsensusState) GetPeer() string {
+	return c.Peer
+}
+
+func (c ConsensusState) GetTransferType() TransferType {
+	return c.TransferType
+}
+
+func (c ConsensusState) GetUpdateType() string {
+	return c.UpdateType
 }
 
 func WriteConsensusState(
