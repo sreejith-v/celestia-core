@@ -13,9 +13,16 @@ import (
 )
 
 const (
-	FirstChannel  = byte(0x01)
-	SecondChannel = byte(0x02)
-	ThirdChannel  = byte(0x03)
+	FirstChannel   = byte(0x01)
+	SecondChannel  = byte(0x02)
+	ThirdChannel   = byte(0x03)
+	FourthChannel  = byte(0x04)
+	FifthChannel   = byte(0x05)
+	SixthChannel   = byte(0x06)
+	SeventhChannel = byte(0x07)
+	EighthChannel  = byte(0x08)
+	NinthChannel   = byte(0x09)
+	TenthChannel   = byte(0x10)
 )
 
 var priorities = make(map[byte]int)
@@ -29,44 +36,119 @@ func init() {
 var defaultTestChannels = []*p2p.ChannelDescriptor{
 	{
 		ID:                  FirstChannel,
-		Priority:            10,
-		SendQueueCapacity:   2000,
+		Priority:            1,
+		SendQueueCapacity:   1,
 		RecvBufferCapacity:  100,
 		RecvMessageCapacity: 2000000,
 		MessageType:         &protomem.Txs{},
 	},
 	{
 		ID:                  SecondChannel,
-		Priority:            5,
-		SendQueueCapacity:   1000,
-		RecvBufferCapacity:  100,
+		Priority:            3,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  1000,
 		RecvMessageCapacity: 2000000,
 		MessageType:         &protomem.Txs{},
 	},
 	{
 		ID:                  ThirdChannel,
 		Priority:            5,
-		SendQueueCapacity:   1000,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  100,
+		RecvMessageCapacity: 2000000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  FourthChannel,
+		Priority:            7,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  100,
+		RecvMessageCapacity: 2000000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  FifthChannel,
+		Priority:            9,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  100,
+		RecvMessageCapacity: 2000000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  SixthChannel,
+		Priority:            11,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  100,
+		RecvMessageCapacity: 2000000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  SeventhChannel,
+		Priority:            13,
+		SendQueueCapacity:   100,
+		RecvBufferCapacity:  100,
+		RecvMessageCapacity: 2000000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  EighthChannel,
+		Priority:            15,
+		SendQueueCapacity:   100,
+		RecvBufferCapacity:  100,
+		RecvMessageCapacity: 200000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  NinthChannel,
+		Priority:            13,
+		SendQueueCapacity:   1,
+		RecvBufferCapacity:  100,
+		RecvMessageCapacity: 2000000,
+		MessageType:         &protomem.Txs{},
+	},
+	{
+		ID:                  TenthChannel,
+		Priority:            15,
+		SendQueueCapacity:   1,
 		RecvBufferCapacity:  100,
 		RecvMessageCapacity: 2000000,
 		MessageType:         &protomem.Txs{},
 	},
 }
 
+var defaultMsgSizes = []int{
+	300,
+	1000,
+	1000,
+	100,
+	1000,
+	1000,
+	100,
+	100000,
+	100,
+	1000,
+}
+
 // MockReactor represents a mock implementation of the Reactor interface.
 type MockReactor struct {
 	p2p.BaseReactor
 	channels []*conn.ChannelDescriptor
-	peer     p2p.Peer
+	sizes    map[byte]int
 
 	mtx    sync.Mutex
+	peers  map[p2p.ID]p2p.Peer
 	Traces []Trace
 }
 
 // NewMockReactor creates a new mock reactor.
-func NewMockReactor(channels []*conn.ChannelDescriptor) *MockReactor {
+func NewMockReactor(channels []*conn.ChannelDescriptor, msgSizes []int) *MockReactor {
 	mr := &MockReactor{
 		channels: channels,
+		peers:    make(map[p2p.ID]p2p.Peer),
+		sizes:    make(map[byte]int),
+	}
+	for i, ch := range channels {
+		mr.sizes[ch.ID] = msgSizes[i]
 	}
 	mr.BaseReactor = *p2p.NewBaseReactor("MockReactor", mr)
 	return mr
@@ -86,7 +168,9 @@ func (mr *MockReactor) InitPeer(peer p2p.Peer) p2p.Peer {
 
 // AddPeer implements Reactor.
 func (mr *MockReactor) AddPeer(peer p2p.Peer) {
-	mr.peer = peer
+	mr.mtx.Lock()
+	defer mr.mtx.Unlock()
+	mr.peers[peer.ID()] = peer
 }
 
 // RemovePeer implements Reactor.
@@ -138,7 +222,13 @@ func (mr *MockReactor) ReceiveEnvelope(e p2p.Envelope) {
 	mr.mtx.Unlock()
 }
 
-func (mr *MockReactor) SendBytes(chID byte, count int) bool {
+func (mr *MockReactor) SendBytes(id p2p.ID, chID byte, count int) bool {
+	peer, has := mr.peers[id]
+	if !has {
+		mr.Logger.Error("Peer not found")
+		return false
+	}
+
 	b := make([]byte, count)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -146,17 +236,17 @@ func (mr *MockReactor) SendBytes(chID byte, count int) bool {
 		return false
 	}
 	txs := &protomem.Txs{Txs: [][]byte{b}}
-	return p2p.SendEnvelopeShim(mr.peer, p2p.Envelope{
+	return p2p.SendEnvelopeShim(peer, p2p.Envelope{
 		Message:   txs,
 		ChannelID: chID,
-		Src:       mr.peer,
+		Src:       peer,
 	}, mr.Logger)
 }
 
-func (mr *MockReactor) FillChannel(chID byte, count, msgSize int) (bool, int, time.Duration) {
+func (mr *MockReactor) FillChannel(id p2p.ID, chID byte, count, msgSize int) (bool, int, time.Duration) {
 	start := time.Now()
 	for i := 0; i < count; i++ {
-		success := mr.SendBytes(chID, msgSize)
+		success := mr.SendBytes(id, chID, msgSize)
 		if !success {
 			end := time.Now()
 			return success, i, end.Sub(start)
@@ -164,4 +254,53 @@ func (mr *MockReactor) FillChannel(chID byte, count, msgSize int) (bool, int, ti
 	}
 	end := time.Now()
 	return true, count, end.Sub(start)
+}
+
+func (mr *MockReactor) DumpFloodChannel(wg *sync.WaitGroup, id p2p.ID, d, t time.Duration, chIDs ...byte) {
+	for _, chID := range chIDs {
+		wg.Add(1)
+		size := mr.sizes[chID]
+		go func(d time.Duration, chID byte, size int) {
+			start := time.Now()
+			defer wg.Done()
+			for time.Since(start) < t {
+				subStart := time.Now()
+				for time.Since(subStart) < d {
+					mr.SendBytes(id, chID, size)
+				}
+				time.Sleep(d)
+			}
+
+		}(d, chID, size)
+	}
+}
+
+func (mr *MockReactor) FloodChannel(wg *sync.WaitGroup, id p2p.ID, d time.Duration, chIDs ...byte) {
+	for _, chID := range chIDs {
+		wg.Add(1)
+		size := mr.sizes[chID]
+		go func(d time.Duration, chID byte, size int) {
+			start := time.Now()
+			defer wg.Done()
+			for time.Since(start) < d {
+				mr.SendBytes(id, chID, size)
+			}
+
+		}(d, chID, size)
+	}
+}
+
+func (mr *MockReactor) FloodAllPeers(wg *sync.WaitGroup, d time.Duration, chIDs ...byte) {
+	for _, peer := range mr.peers {
+		mr.FloodChannel(wg, peer.ID(), d, chIDs...)
+	}
+}
+
+func (mr *MockReactor) DumpFloodAllPeers(wg *sync.WaitGroup, d, t time.Duration, chIDs ...byte) {
+	counter := 0
+	for _, peer := range mr.peers {
+		fmt.Println("DumpFloodAllPeers", peer.ID(), d, t, chIDs)
+		mr.DumpFloodChannel(wg, peer.ID(), d, t, chIDs...)
+		counter++
+	}
 }

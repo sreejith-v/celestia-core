@@ -20,6 +20,11 @@ type Trace struct {
 }
 
 func VizBandwidth(filename string, data []Trace) {
+
+	if len(data) == 0 {
+		fmt.Println("No data to visualize")
+		return
+	}
 	// Create a new plot
 	p := plot.New()
 	p.Title.Text = "Channel Bandwidth Comparison"
@@ -118,6 +123,7 @@ func VizTotalBandwidth(filename string, data []Trace) {
 		totalBytesUsed[msg.Channel] += msg.Size
 	}
 
+	total := 0.0
 	bandwidthByChannel := make(plotter.Values, 0, len(totalBytesUsed))
 	labels := plotter.XYLabels{}
 	counter := 0
@@ -126,11 +132,14 @@ func VizTotalBandwidth(filename string, data []Trace) {
 		end := ends[ch]
 		elapsed := end.Sub(start)
 		b := bandwidth(elapsed, bytes)
+		total += b
 		bandwidthByChannel = append(bandwidthByChannel, b)
 		labels.Labels = append(labels.Labels, fmt.Sprintf("Channel %X", ch))
 		labels.XYs = append(labels.XYs, plotter.XY{X: float64(counter), Y: b + 0.1})
 		counter++
 	}
+
+	fmt.Println("Total bandwidth used: ", total)
 
 	barWidth := float64(100) / float64(len(totalBytesUsed))
 
