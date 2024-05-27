@@ -21,12 +21,15 @@ import (
 	"github.com/tendermint/tendermint/libs/service"
 	cmtsync "github.com/tendermint/tendermint/libs/sync"
 	"github.com/tendermint/tendermint/libs/timer"
+	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/tendermint/tendermint/pkg/trace/schema"
 	tmp2p "github.com/tendermint/tendermint/proto/tendermint/p2p"
 )
 
 const (
 	defaultMaxPacketMsgPayloadSize = 1024
 
+	// TODO(evan): Figure out if we need to change these
 	numBatchPacketMsgs = 10
 	minReadBufferSize  = 1024
 	minWriteBufferSize = 65536
@@ -116,6 +119,8 @@ type MConnection struct {
 	created time.Time // time of creation
 
 	_maxPacketMsgSize int
+
+	tracer trace.Tracer
 }
 
 // MConnConfig is a MConnection configuration.
@@ -160,7 +165,8 @@ func NewMConnection(
 		chDescs,
 		onReceive,
 		onError,
-		DefaultMConnConfig())
+		DefaultMConnConfig(),
+		trace.NoOpTracer(), "")
 }
 
 // NewMConnectionWithConfig wraps net.Conn and creates multiplex connection with a config
@@ -170,6 +176,8 @@ func NewMConnectionWithConfig(
 	onReceive receiveCbFunc,
 	onError errorCbFunc,
 	config MConnConfig,
+	tracer trace.Tracer,
+	id string,
 ) *MConnection {
 	if config.PongTimeout >= config.PingInterval {
 		panic("pongTimeout must be less than pingInterval (otherwise, next ping will reset pong timer)")
@@ -187,6 +195,7 @@ func NewMConnectionWithConfig(
 		onError:       onError,
 		config:        config,
 		created:       time.Now(),
+		tracer:        tracer,
 	}
 
 	// Create channels
@@ -194,7 +203,7 @@ func NewMConnectionWithConfig(
 	var channels = []*Channel{}
 
 	for _, desc := range chDescs {
-		channel := newChannel(mconn, *desc)
+		channel := newChannel(mconn, *desc, tracer, id)
 		channelsIdx[channel.desc.ID] = channel
 		channels = append(channels, channel)
 	}
@@ -325,12 +334,14 @@ func (c *MConnection) flush() {
 	err := c.bufConnWriter.Flush()
 	if err != nil {
 		c.Logger.Debug("MConnection flush failed", "err", err)
+
 	}
 }
 
 // Catch panics, usually caused by remote disconnects.
 func (c *MConnection) _recover() {
 	if r := recover(); r != nil {
+		fmt.Println(string(debug.Stack()))
 		c.Logger.Error("MConnection panicked", "err", r, "stack", string(debug.Stack()))
 		c.stopForError(fmt.Errorf("recovered from panic: %v", r))
 	}
@@ -755,9 +766,10 @@ type Channel struct {
 	maxPacketMsgPayloadSize int
 
 	Logger log.Logger
+	tracer schema.ChannelPacketTracer
 }
 
-func newChannel(conn *MConnection, desc ChannelDescriptor) *Channel {
+func newChannel(conn *MConnection, desc ChannelDescriptor, tracer trace.Tracer, id string) *Channel {
 	desc = desc.FillDefaults()
 	if desc.Priority <= 0 {
 		panic("Channel default priority must be a positive integer")
@@ -768,6 +780,7 @@ func newChannel(conn *MConnection, desc ChannelDescriptor) *Channel {
 		sendQueue:               make(chan []byte, desc.SendQueueCapacity),
 		recving:                 make([]byte, 0, desc.RecvBufferCapacity),
 		maxPacketMsgPayloadSize: conn.config.MaxPacketMsgPayloadSize,
+		tracer:                  schema.ChannelPacketTracer{Client: tracer, Channel: desc.ID, PeerID: id},
 	}
 }
 
@@ -847,6 +860,7 @@ func (ch *Channel) nextPacketMsg() tmp2p.PacketMsg {
 func (ch *Channel) writePacketMsgTo(w io.Writer) (n int, err error) {
 	packet := ch.nextPacketMsg()
 	n, err = protoio.NewDelimitedWriter(w).WriteMsg(mustWrapPacket(&packet))
+	ch.tracer.Trace()
 	atomic.AddInt64(&ch.recentlySent, int64(n))
 	return
 }

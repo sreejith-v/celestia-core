@@ -237,7 +237,20 @@ func (na *NetAddress) Dial() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return conn, nil
+	tcpConn, ok := conn.(*net.TCPConn)
+	if ok {
+		if err := tcpConn.SetNoDelay(true); err != nil {
+			fmt.Println("Error setting TCP_NODELAY:", err)
+		}
+	}
+	// Set read and write buffer sizes
+	// if err := tcpConn.SetReadBuffer(128 * 1024); err != nil {
+	// 	fmt.Println("Error setting read buffer size:", err)
+	// }
+	// if err := tcpConn.SetWriteBuffer(128 * 1024); err != nil {
+	// 	fmt.Println("Error setting write buffer size:", err)
+	// }
+	return tcpConn, nil
 }
 
 // DialTimeout calls net.DialTimeout on the address.
@@ -246,7 +259,21 @@ func (na *NetAddress) DialTimeout(timeout time.Duration) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return conn, nil
+	tcpConn, ok := conn.(*net.TCPConn)
+	if ok {
+		// if err := tcpConn.SetNoDelay(true); err != nil {
+		// 	fmt.Println("Error setting TCP_NODELAY:", err)
+		// }
+	}
+	// err = tcpConn.SetKeepAlive(true)
+	// // Set read and write buffer sizes
+	// if err := tcpConn.SetReadBuffer(128 * 1024); err != nil {
+	// 	fmt.Println("Error setting read buffer size:", err)
+	// }
+	// if err := tcpConn.SetWriteBuffer(128 * 1024); err != nil {
+	// 	fmt.Println("Error setting write buffer size:", err)
+	// }
+	return tcpConn, err
 }
 
 // Routable returns true if the address is routable.

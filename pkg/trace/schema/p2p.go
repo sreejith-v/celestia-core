@@ -1,6 +1,8 @@
 package schema
 
-import "github.com/tendermint/tendermint/pkg/trace"
+import (
+	"github.com/tendermint/tendermint/pkg/trace"
+)
 
 // P2PTables returns the list of tables that are used for p2p tracing.
 func P2PTables() []string {
@@ -8,6 +10,7 @@ func P2PTables() []string {
 		PeersTable,
 		PendingBytesTable,
 		ReceivedBytesTable,
+		NetworkPacketsTable,
 	}
 }
 
@@ -79,4 +82,31 @@ func (s ReceivedBytes) Table() string {
 
 func WriteReceivedBytes(client trace.Tracer, peerID string, channel byte, bytes int) {
 	client.Write(ReceivedBytes{PeerID: peerID, Channel: channel, Bytes: bytes})
+}
+
+const (
+	NetworkPacketsTable = "network_packets"
+)
+
+type NetworkPacket struct {
+	PeerID  string `json:"peer_id"`
+	Channel byte   `json:"channel"`
+}
+
+func (s NetworkPacket) Table() string {
+	return NetworkPacketsTable
+}
+
+func WriteNetworkPacket(client trace.Tracer, peerID string, channel byte) {
+	client.Write(NetworkPacket{PeerID: peerID, Channel: channel})
+}
+
+type ChannelPacketTracer struct {
+	PeerID  string
+	Channel byte
+	Client  trace.Tracer
+}
+
+func (c ChannelPacketTracer) Trace() {
+	WriteNetworkPacket(c.Client, c.PeerID, c.Channel)
 }

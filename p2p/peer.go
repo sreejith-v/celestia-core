@@ -215,6 +215,10 @@ func newPeer(
 		traceClient:   trace.NoOpTracer(),
 	}
 
+	for _, option := range options {
+		option(p)
+	}
+
 	p.mconn = createMConnection(
 		pc.conn,
 		p,
@@ -225,9 +229,6 @@ func newPeer(
 		mConfig,
 	)
 	p.BaseService = *service.NewBaseService(nil, "Peer", p)
-	for _, option := range options {
-		option(p)
-	}
 
 	return p
 }
@@ -581,5 +582,7 @@ func createMConnection(
 		onReceive,
 		onError,
 		config,
+		p.traceClient,
+		string(p.ID()),
 	)
 }

@@ -17,7 +17,6 @@ func TestMultipleConnections(t *testing.T) {
 	cfg.AllowDuplicateIP = true
 	cfg.DialTimeout = 10 * time.Second
 	mcfg := conn.DefaultMConnConfig()
-	mcfg.PongTimeout = 10 * time.Second
 	mcfg.SendRate = 5000000
 	mcfg.RecvRate = 5000000
 	mcfg.FlushThrottle = 100 * time.Millisecond
@@ -26,14 +25,15 @@ func TestMultipleConnections(t *testing.T) {
 	reactors := make([]*MockReactor, peerCount)
 	nodes := make([]*node, peerCount)
 
+	chainID := "base-6"
+
 	for i := 0; i < peerCount; i++ {
 		reactor := NewMockReactor(defaultTestChannels, defaultMsgSizes)
-		node, err := newnode(*cfg, mcfg, reactor)
+		node, err := newnode(*cfg, mcfg, chainID, reactor)
 		require.NoError(t, err)
 
 		err = node.start()
 		require.NoError(t, err)
-		defer node.stop()
 
 		reactors[i] = reactor
 		nodes[i] = node
@@ -56,11 +56,8 @@ func TestMultipleConnections(t *testing.T) {
 
 	wg.Wait()
 
-	// wait for the nodes to connect
-	time.Sleep(1 * time.Second)
-
 	for _, reactor := range reactors {
-		reactor.FloodAllPeers(&wg, time.Second*10,
+		reactor.FloodAllPeers(&wg, time.Second*20,
 			FirstChannel,
 			SecondChannel,
 			ThirdChannel,
@@ -76,8 +73,14 @@ func TestMultipleConnections(t *testing.T) {
 
 	wg.Wait()
 
-	time.Sleep(1 * time.Second) // wait for the messages to finish sending
+	time.Sleep(2 * time.Second) // wait for the messages to finish sending
+
+	for _, node := range nodes {
+		node.stop()
+	}
+
+	time.Sleep(5 * time.Second) // wait for the nodes to stop
 
 	// VizBandwidth("test.png", reactor2.Traces)
-	VizTotalBandwidth("test2.png", reactors[0].Traces)
+	// VizTotalBandwidth("test2.png", reactors[0].Traces)
 }

@@ -12,14 +12,18 @@ import (
 	"gonum.org/v1/plot/vg"
 )
 
-type Trace struct {
-	SendTime    time.Time
-	ReceiveTime time.Time
-	Size        int
-	Channel     byte
+type Transit struct {
+	SendTime    time.Time `json:"send_time"`
+	ReceiveTime time.Time `json:"receive_time"`
+	Size        int       `json:"size"`
+	Channel     byte      `json:"channel"`
 }
 
-func VizBandwidth(filename string, data []Trace) {
+func (t Transit) Table() string {
+	return "transit"
+}
+
+func VizBandwidth(filename string, data []Transit) {
 
 	if len(data) == 0 {
 		fmt.Println("No data to visualize")
@@ -72,7 +76,7 @@ func VizBandwidth(filename string, data []Trace) {
 	}
 }
 
-func findStarts(channelData []Trace) map[byte]time.Time {
+func findStarts(channelData []Transit) map[byte]time.Time {
 	starts := make(map[byte]time.Time)
 	for _, msg := range channelData {
 		if _, ok := starts[msg.Channel]; !ok {
@@ -82,7 +86,7 @@ func findStarts(channelData []Trace) map[byte]time.Time {
 	return starts
 }
 
-func findEnds(channelData []Trace) map[byte]time.Time {
+func findEnds(channelData []Transit) map[byte]time.Time {
 	ends := make(map[byte]time.Time)
 	for _, msg := range channelData {
 		ends[msg.Channel] = msg.ReceiveTime
@@ -90,7 +94,7 @@ func findEnds(channelData []Trace) map[byte]time.Time {
 	return ends
 }
 
-func initPlotters(data []Trace) map[byte]plotter.XYs {
+func initPlotters(data []Transit) map[byte]plotter.XYs {
 	plotters := make(map[byte]plotter.XYs)
 	for _, d := range data {
 		if _, ok := plotters[d.Channel]; !ok {
@@ -108,7 +112,7 @@ func bandwidth(elapsed time.Duration, size int) float64 {
 	return MBSize / float64(elapsed.Seconds())
 }
 
-func VizTotalBandwidth(filename string, data []Trace) {
+func VizTotalBandwidth(filename string, data []Transit) {
 	// Create a new plot
 	p := plot.New()
 	p.Title.Text = "Total Bandwidth Used by Each Channel"
@@ -169,7 +173,7 @@ func (NilTicks) Ticks(min, max float64) []plot.Tick {
 	return []plot.Tick{} // No ticks.
 }
 
-func averageLatency(data []Trace) map[byte]float64 {
+func averageLatency(data []Transit) map[byte]float64 {
 	latencies := make(map[byte]float64)
 	counts := make(map[byte]int)
 	for _, msg := range data {

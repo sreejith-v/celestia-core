@@ -9,6 +9,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/conn"
+	"github.com/tendermint/tendermint/pkg/trace"
 	protomem "github.com/tendermint/tendermint/proto/tendermint/mempool"
 )
 
@@ -40,7 +41,7 @@ var defaultTestChannels = []*p2p.ChannelDescriptor{
 		SendQueueCapacity:   1,
 		RecvBufferCapacity:  100,
 		RecvMessageCapacity: 2000000,
-		MessageType:         &protomem.Txs{},
+		MessageType:         &protomem.TestTx{},
 	},
 	{
 		ID:                  SecondChannel,
@@ -48,7 +49,7 @@ var defaultTestChannels = []*p2p.ChannelDescriptor{
 		SendQueueCapacity:   1,
 		RecvBufferCapacity:  1000,
 		RecvMessageCapacity: 2000000,
-		MessageType:         &protomem.Txs{},
+		MessageType:         &protomem.TestTx{},
 	},
 	{
 		ID:                  ThirdChannel,
@@ -56,7 +57,7 @@ var defaultTestChannels = []*p2p.ChannelDescriptor{
 		SendQueueCapacity:   1,
 		RecvBufferCapacity:  100,
 		RecvMessageCapacity: 2000000,
-		MessageType:         &protomem.Txs{},
+		MessageType:         &protomem.TestTx{},
 	},
 	{
 		ID:                  FourthChannel,
@@ -64,7 +65,7 @@ var defaultTestChannels = []*p2p.ChannelDescriptor{
 		SendQueueCapacity:   1,
 		RecvBufferCapacity:  100,
 		RecvMessageCapacity: 2000000,
-		MessageType:         &protomem.Txs{},
+		MessageType:         &protomem.TestTx{},
 	},
 	{
 		ID:                  FifthChannel,
@@ -72,7 +73,7 @@ var defaultTestChannels = []*p2p.ChannelDescriptor{
 		SendQueueCapacity:   1,
 		RecvBufferCapacity:  100,
 		RecvMessageCapacity: 2000000,
-		MessageType:         &protomem.Txs{},
+		MessageType:         &protomem.TestTx{},
 	},
 	{
 		ID:                  SixthChannel,
@@ -80,7 +81,7 @@ var defaultTestChannels = []*p2p.ChannelDescriptor{
 		SendQueueCapacity:   1,
 		RecvBufferCapacity:  100,
 		RecvMessageCapacity: 2000000,
-		MessageType:         &protomem.Txs{},
+		MessageType:         &protomem.TestTx{},
 	},
 	{
 		ID:                  SeventhChannel,
@@ -88,7 +89,7 @@ var defaultTestChannels = []*p2p.ChannelDescriptor{
 		SendQueueCapacity:   100,
 		RecvBufferCapacity:  100,
 		RecvMessageCapacity: 2000000,
-		MessageType:         &protomem.Txs{},
+		MessageType:         &protomem.TestTx{},
 	},
 	{
 		ID:                  EighthChannel,
@@ -96,7 +97,7 @@ var defaultTestChannels = []*p2p.ChannelDescriptor{
 		SendQueueCapacity:   100,
 		RecvBufferCapacity:  100,
 		RecvMessageCapacity: 200000,
-		MessageType:         &protomem.Txs{},
+		MessageType:         &protomem.TestTx{},
 	},
 	{
 		ID:                  NinthChannel,
@@ -104,7 +105,7 @@ var defaultTestChannels = []*p2p.ChannelDescriptor{
 		SendQueueCapacity:   1,
 		RecvBufferCapacity:  100,
 		RecvMessageCapacity: 2000000,
-		MessageType:         &protomem.Txs{},
+		MessageType:         &protomem.TestTx{},
 	},
 	{
 		ID:                  TenthChannel,
@@ -112,7 +113,7 @@ var defaultTestChannels = []*p2p.ChannelDescriptor{
 		SendQueueCapacity:   1,
 		RecvBufferCapacity:  100,
 		RecvMessageCapacity: 2000000,
-		MessageType:         &protomem.Txs{},
+		MessageType:         &protomem.TestTx{},
 	},
 }
 
@@ -137,7 +138,7 @@ type MockReactor struct {
 
 	mtx    sync.Mutex
 	peers  map[p2p.ID]p2p.Peer
-	Traces []Trace
+	tracer trace.Tracer
 }
 
 // NewMockReactor creates a new mock reactor.
@@ -152,6 +153,10 @@ func NewMockReactor(channels []*conn.ChannelDescriptor, msgSizes []int) *MockRea
 	}
 	mr.BaseReactor = *p2p.NewBaseReactor("MockReactor", mr)
 	return mr
+}
+
+func (mr *MockReactor) SetTracer(tracer trace.Tracer) {
+	mr.tracer = tracer
 }
 
 // GetChannels implements Reactor.
@@ -200,26 +205,43 @@ func (mr *MockReactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
 	})
 }
 
+type Payload struct {
+	Time time.Time `json:"time"`
+	Data string    `json:"data"`
+}
+
 // ReceiveEnvelope implements Reactor.
 // It processes one of three messages: Txs, SeenTx, WantTx.
 func (mr *MockReactor) ReceiveEnvelope(e p2p.Envelope) {
 	size := 0
+	// Decode JSON bytes back to time.Time
+	var (
+		start time.Time
+		err   error
+	)
 	switch msg := e.Message.(type) {
-	case *protomem.Txs:
-		for _, tx := range msg.Txs {
-			size += len(tx)
-		}
+	case *protomem.TestTx:
+		size = len(msg.Tx)
+		start, err = time.Parse(time.RFC3339Nano, msg.StartTime)
 	default:
-		panic("Unexpected message type")
+		fmt.Printf("Unexpected message type %T\n", e.Message)
+		return
 	}
+	if err != nil {
+		fmt.Println("failure to parse time", err)
+		return
+	}
+
 	t := time.Now()
-	mr.mtx.Lock()
-	mr.Traces = append(mr.Traces, Trace{
+
+	transit := Transit{
+		SendTime:    start,
 		ReceiveTime: t,
 		Size:        size,
 		Channel:     e.ChannelID,
-	})
-	mr.mtx.Unlock()
+	}
+
+	mr.tracer.Write(transit)
 }
 
 func (mr *MockReactor) SendBytes(id p2p.ID, chID byte, count int) bool {
@@ -235,7 +257,8 @@ func (mr *MockReactor) SendBytes(id p2p.ID, chID byte, count int) bool {
 		mr.Logger.Error("Failed to generate random bytes")
 		return false
 	}
-	txs := &protomem.Txs{Txs: [][]byte{b}}
+
+	txs := &protomem.TestTx{StartTime: time.Now().Format(time.RFC3339Nano), Tx: b}
 	return p2p.SendEnvelopeShim(peer, p2p.Envelope{
 		Message:   txs,
 		ChannelID: chID,
@@ -299,7 +322,6 @@ func (mr *MockReactor) FloodAllPeers(wg *sync.WaitGroup, d time.Duration, chIDs 
 func (mr *MockReactor) DumpFloodAllPeers(wg *sync.WaitGroup, d, t time.Duration, chIDs ...byte) {
 	counter := 0
 	for _, peer := range mr.peers {
-		fmt.Println("DumpFloodAllPeers", peer.ID(), d, t, chIDs)
 		mr.DumpFloodChannel(wg, peer.ID(), d, t, chIDs...)
 		counter++
 	}

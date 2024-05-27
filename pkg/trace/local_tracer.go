@@ -71,7 +71,7 @@ type LocalTracer struct {
 // save events is started in this function.
 func NewLocalTracer(cfg *config.Config, logger log.Logger, chainID, nodeID string) (*LocalTracer, error) {
 	fm := make(map[string]*bufferedFile)
-	p := path.Join(cfg.RootDir, "data", "traces")
+	p := path.Join("/home/evan/Downloads/traces", "local", chainID, nodeID)
 	for _, table := range splitAndTrimEmpty(cfg.Instrumentation.TracingTables, ",", " ") {
 		fileName := fmt.Sprintf("%s/%s.jsonl", p, table)
 		err := os.MkdirAll(p, 0700)
@@ -139,6 +139,7 @@ func GetPushConfigFromEnv() (S3Config, error) {
 
 func (lt *LocalTracer) Write(e Entry) {
 	if !lt.IsCollecting(e.Table()) {
+		fmt.Println("not collecting")
 		return
 	}
 	lt.canal <- NewEvent(lt.chainID, lt.nodeID, e.Table(), e)
@@ -180,6 +181,7 @@ func (lt *LocalTracer) saveEventToFile(event Event[Entry]) error {
 	}
 
 	if _, err := file.Write(append(eventJSON, '\n')); err != nil {
+		fmt.Println("failed to write", err)
 		return fmt.Errorf("failed to write event to file: %v", err)
 	}
 
@@ -192,6 +194,7 @@ func (lt *LocalTracer) drainCanal() {
 	// actions, to avoid overhead of locking with each event save.
 	for ev := range lt.canal {
 		if err := lt.saveEventToFile(ev); err != nil {
+			fmt.Println("failed to save event to file", err)
 			lt.logger.Error("failed to save event to file", "error", err)
 		}
 	}
@@ -208,6 +211,7 @@ func (lt *LocalTracer) Stop() {
 	}
 
 	for _, file := range lt.fileMap {
+		fmt.Println("closing file", file.file.Name())
 		err := file.Close()
 		if err != nil {
 			lt.logger.Error("failed to close file", "error", err)

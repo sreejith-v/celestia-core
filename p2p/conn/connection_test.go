@@ -13,6 +13,7 @@ import (
 
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/libs/protoio"
+	"github.com/tendermint/tendermint/pkg/trace"
 	tmp2p "github.com/tendermint/tendermint/proto/tendermint/p2p"
 	"github.com/tendermint/tendermint/proto/tendermint/types"
 )
@@ -38,7 +39,7 @@ func createMConnectionWithCallbacks(
 	cfg.PingInterval = 90 * time.Millisecond
 	cfg.PongTimeout = 45 * time.Millisecond
 	chDescs := []*ChannelDescriptor{{ID: 0x01, Priority: 1, SendQueueCapacity: 1}}
-	c := NewMConnectionWithConfig(conn, chDescs, onReceive, onError, cfg)
+	c := NewMConnectionWithConfig(conn, chDescs, onReceive, onError, cfg, trace.NoOpTracer(), "")
 	c.SetLogger(log.TestingLogger())
 	return c
 }
