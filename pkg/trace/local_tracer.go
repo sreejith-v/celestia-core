@@ -139,7 +139,6 @@ func GetPushConfigFromEnv() (S3Config, error) {
 
 func (lt *LocalTracer) Write(e Entry) {
 	if !lt.IsCollecting(e.Table()) {
-		fmt.Println("not collecting")
 		return
 	}
 	lt.canal <- NewEvent(lt.chainID, lt.nodeID, e.Table(), e)

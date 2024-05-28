@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -126,7 +127,7 @@ var defaultMsgSizes = []int{
 	1000,
 	100,
 	100000,
-	100,
+	300,
 	1000,
 }
 
@@ -136,8 +137,10 @@ type MockReactor struct {
 	channels []*conn.ChannelDescriptor
 	sizes    map[byte]int
 
-	mtx    sync.Mutex
-	peers  map[p2p.ID]p2p.Peer
+	mtx      sync.Mutex
+	peers    map[p2p.ID]p2p.Peer
+	received atomic.Int64
+
 	tracer trace.Tracer
 }
 
@@ -234,14 +237,20 @@ func (mr *MockReactor) ReceiveEnvelope(e p2p.Envelope) {
 
 	t := time.Now()
 
-	transit := Transit{
-		SendTime:    start,
-		ReceiveTime: t,
-		Size:        size,
-		Channel:     e.ChannelID,
+	if t.Sub(start) > 1*time.Second {
+		fmt.Println("time difference is too large")
 	}
 
-	mr.tracer.Write(transit)
+	mr.received.Add(int64(size))
+
+	// transit := Transit{
+	// 	SendTime:    start,
+	// 	ReceiveTime: t,
+	// 	Size:        size,
+	// 	Channel:     e.ChannelID,
+	// }
+
+	// mr.tracer.Write(transit)
 }
 
 func (mr *MockReactor) SendBytes(id p2p.ID, chID byte, count int) bool {

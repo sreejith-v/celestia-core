@@ -31,7 +31,7 @@ const (
 
 	// TODO(evan): Figure out if we need to change these
 	numBatchPacketMsgs = 10
-	minReadBufferSize  = 1024
+	minReadBufferSize  = 65536
 	minWriteBufferSize = 65536
 	updateStats        = 2 * time.Second
 
@@ -559,6 +559,7 @@ func (c *MConnection) sendPacketMsg() bool {
 		c.stopForError(err)
 		return true
 	}
+	// schema.WriteConnBuffer(c.tracer, c.bufConnWriter.Size())
 	c.sendMonitor.Update(_n)
 	c.flushTimer.Set()
 	return false
@@ -860,7 +861,7 @@ func (ch *Channel) nextPacketMsg() tmp2p.PacketMsg {
 func (ch *Channel) writePacketMsgTo(w io.Writer) (n int, err error) {
 	packet := ch.nextPacketMsg()
 	n, err = protoio.NewDelimitedWriter(w).WriteMsg(mustWrapPacket(&packet))
-	ch.tracer.Trace()
+	// ch.tracer.Trace()
 	atomic.AddInt64(&ch.recentlySent, int64(n))
 	return
 }

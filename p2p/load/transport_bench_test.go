@@ -107,6 +107,7 @@ func newnode(p2pCfg config.P2PConfig, mcfg conn.MConnConfig, chainID string, rs 
 	cfg := config.DefaultConfig()
 	cfg.Instrumentation.TraceType = "local"
 	cfg.Instrumentation.TracingTables = cfg.Instrumentation.TracingTables + ",transit"
+	cfg.Instrumentation.TraceBufferSize = 10000
 
 	tracer, err := trace.NewTracer(cfg, log.NewTMLogger(os.Stdout), chainID, string(id))
 	if err != nil {

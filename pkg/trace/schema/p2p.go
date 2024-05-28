@@ -11,6 +11,7 @@ func P2PTables() []string {
 		PendingBytesTable,
 		ReceivedBytesTable,
 		NetworkPacketsTable,
+		// "conn_buf",
 	}
 }
 
@@ -109,4 +110,16 @@ type ChannelPacketTracer struct {
 
 func (c ChannelPacketTracer) Trace() {
 	WriteNetworkPacket(c.Client, c.PeerID, c.Channel)
+}
+
+type ConnectionBuffer struct {
+	Size int `json:"size"`
+}
+
+func (c ConnectionBuffer) Table() string {
+	return "conn_buf"
+}
+
+func WriteConnBuffer(client trace.Tracer, size int) {
+	client.Write(ConnectionBuffer{Size: size})
 }

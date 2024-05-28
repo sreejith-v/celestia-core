@@ -25,7 +25,7 @@ func TestMultipleConnections(t *testing.T) {
 	reactors := make([]*MockReactor, peerCount)
 	nodes := make([]*node, peerCount)
 
-	chainID := "base-6"
+	chainID := "base-30"
 
 	for i := 0; i < peerCount; i++ {
 		reactor := NewMockReactor(defaultTestChannels, defaultMsgSizes)
@@ -40,7 +40,7 @@ func TestMultipleConnections(t *testing.T) {
 		fmt.Println("added node", i, node.addr)
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(100 * time.Millisecond)
 
 	var wg sync.WaitGroup
 	for i := 1; i < peerCount; i++ {
@@ -57,29 +57,29 @@ func TestMultipleConnections(t *testing.T) {
 	wg.Wait()
 
 	for _, reactor := range reactors {
-		reactor.FloodAllPeers(&wg, time.Second*20,
-			FirstChannel,
-			SecondChannel,
-			ThirdChannel,
-			FourthChannel,
-			FifthChannel,
-			SixthChannel,
+		reactor.FloodAllPeers(&wg, time.Second*30,
+			// FirstChannel,
+			// SecondChannel,
+			// ThirdChannel,
+			// FourthChannel,
+			// FifthChannel,
+			// SixthChannel,
 			SeventhChannel,
 			EighthChannel,
 			NinthChannel,
-			TenthChannel,
+			// TenthChannel,
 		)
 	}
 
 	wg.Wait()
 
-	time.Sleep(2 * time.Second) // wait for the messages to finish sending
+	// time.Sleep(2 * time.Second) // wait for the messages to finish sending
 
 	for _, node := range nodes {
 		node.stop()
 	}
 
-	time.Sleep(5 * time.Second) // wait for the nodes to stop
+	time.Sleep(2 * time.Second) // wait for the nodes to stop
 
 	// VizBandwidth("test.png", reactor2.Traces)
 	// VizTotalBandwidth("test2.png", reactors[0].Traces)

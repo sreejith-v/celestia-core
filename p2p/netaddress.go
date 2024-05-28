@@ -267,10 +267,10 @@ func (na *NetAddress) DialTimeout(timeout time.Duration) (net.Conn, error) {
 	}
 	// err = tcpConn.SetKeepAlive(true)
 	// // Set read and write buffer sizes
-	// if err := tcpConn.SetReadBuffer(128 * 1024); err != nil {
+	// if err := tcpConn.SetReadBuffer(1024 * 1024); err != nil {
 	// 	fmt.Println("Error setting read buffer size:", err)
 	// }
-	// if err := tcpConn.SetWriteBuffer(128 * 1024); err != nil {
+	// if err := tcpConn.SetWriteBuffer(512 * 1024); err != nil {
 	// 	fmt.Println("Error setting write buffer size:", err)
 	// }
 	return tcpConn, err
