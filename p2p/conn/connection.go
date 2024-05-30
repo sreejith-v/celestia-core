@@ -30,9 +30,9 @@ var (
 
 	DefaultMaxPacketMsgPayloadSize = 1024
 
-	NumBatchPacketMsgs = 10
-	MinReadBufferSize  = 50000000
-	MinWriteBufferSize = 65536
+	NumBatchPacketMsgs = 65
+	MinReadBufferSize  = 1024 * 1024 * 4
+	MinWriteBufferSize = 1024 * 1024 * 4
 )
 
 const (
