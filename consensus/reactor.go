@@ -65,7 +65,7 @@ func NewReactor(consensusState *State, waitSync bool, options ...ReactorOption) 
 		Metrics:     NopMetrics(),
 		traceClient: trace.NoOpTracer(),
 	}
-	conR.BaseReactor = *p2p.NewBaseReactor("Consensus", conR)
+	conR.BaseReactor = *p2p.NewBaseReactor("Consensus", conR, 1000)
 
 	for _, option := range options {
 		option(conR)
@@ -148,8 +148,8 @@ conR:
 }
 
 var (
-	DataChannelPriority = 1000
-	DataChannelCapacity = 400
+	DataChannelPriority = 10
+	DataChannelCapacity = 100
 )
 
 // GetChannels implements Reactor

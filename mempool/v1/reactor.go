@@ -101,7 +101,7 @@ func NewReactor(config *cfg.MempoolConfig, mempool *TxMempool, traceClient trace
 		ids:         newMempoolIDs(),
 		traceClient: traceClient,
 	}
-	memR.BaseReactor = *p2p.NewBaseReactor("Mempool", memR)
+	memR.BaseReactor = *p2p.NewBaseReactor("Mempool", memR, 10)
 	return memR
 }
 

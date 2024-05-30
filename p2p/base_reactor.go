@@ -61,19 +61,45 @@ type EnvelopeReceiver interface {
 	// is implemented, it will be used, otherwise the switch will fallback to
 	// using Receive. Receive will be replaced by ReceiveEnvelope in a future version
 	ReceiveEnvelope(Envelope)
+	AsyncReceiveEnvelope(e Envelope)
 }
 
 //--------------------------------------
 
+var (
+	DefaultEnvelopeBufferSize = 100
+)
+
 type BaseReactor struct {
 	service.BaseService // Provides Start, Stop, .Quit
 	Switch              *Switch
+	envelopes           chan Envelope
 }
 
-func NewBaseReactor(name string, impl Reactor) *BaseReactor {
-	return &BaseReactor{
+func NewBaseReactor(name string, impl Reactor, bufferSize int) *BaseReactor {
+	if bufferSize == 0 {
+		bufferSize = DefaultEnvelopeBufferSize
+	}
+	envs := make(chan Envelope, bufferSize)
+	r := &BaseReactor{
 		BaseService: *service.NewBaseService(nil, name, impl),
 		Switch:      nil,
+		envelopes:   envs,
+	}
+	er, ok := impl.(EnvelopeReceiver)
+	if ok {
+		go r.ProcessEnvelopes(er)
+	}
+	return r
+}
+
+func (r *BaseReactor) AsyncReceiveEnvelope(e Envelope) {
+	r.envelopes <- e
+}
+
+func (r *BaseReactor) ProcessEnvelopes(receiver EnvelopeReceiver) {
+	for e := range r.envelopes {
+		receiver.ReceiveEnvelope(e)
 	}
 }
 

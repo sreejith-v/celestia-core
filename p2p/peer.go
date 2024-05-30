@@ -552,16 +552,16 @@ func createMConnection(
 			}
 		}
 
-		labels := []string{
-			"peer_id", string(p.ID()),
-			"chID", fmt.Sprintf("%#x", chID),
-		}
+		// labels := []string{
+		// 	"peer_id", string(p.ID()),
+		// 	"chID", fmt.Sprintf("%#x", chID),
+		// }
 
-		p.metrics.PeerReceiveBytesTotal.With(labels...).Add(float64(len(msgBytes)))
-		p.metrics.MessageReceiveBytesTotal.With(append(labels, "message_type", p.mlc.ValueToMetricLabel(msg))...).Add(float64(len(msgBytes)))
-		schema.WriteReceivedBytes(p.traceClient, string(p.ID()), chID, len(msgBytes))
+		// p.metrics.PeerReceiveBytesTotal.With(labels...).Add(float64(len(msgBytes)))
+		// p.metrics.MessageReceiveBytesTotal.With(append(labels, "message_type", p.mlc.ValueToMetricLabel(msg))...).Add(float64(len(msgBytes)))
+		// schema.WriteReceivedBytes(p.traceClient, string(p.ID()), chID, len(msgBytes))
 		if nr, ok := reactor.(EnvelopeReceiver); ok {
-			nr.ReceiveEnvelope(Envelope{
+			nr.AsyncReceiveEnvelope(Envelope{
 				ChannelID: chID,
 				Src:       p,
 				Message:   msg,

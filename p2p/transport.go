@@ -213,6 +213,11 @@ func (mt *MultiplexTransport) Accept(cfg peerConfig) (Peer, error) {
 	}
 }
 
+var (
+	TCPSocketReadBuffer  = 1024 * 1024
+	TCPSocketWriteBuffer = 1024 * 1024
+)
+
 // Dial implements Transport.
 func (mt *MultiplexTransport) Dial(
 	addr NetAddress,
@@ -222,6 +227,13 @@ func (mt *MultiplexTransport) Dial(
 	if err != nil {
 		return nil, err
 	}
+
+	tcpConn := c.(*net.TCPConn)
+	tcpConn.SetKeepAlive(true)
+	tcpConn.SetReadBuffer(TCPSocketReadBuffer)
+	tcpConn.SetWriteBuffer(TCPSocketWriteBuffer)
+
+	c = tcpConn
 
 	// TODO(xla): Evaluate if we should apply filters if we explicitly dial.
 	if err := mt.filterConn(c); err != nil {

@@ -56,7 +56,7 @@ func NewTestReactor(channels []*conn.ChannelDescriptor, logMessages bool) *TestR
 		logMessages:  logMessages,
 		msgsReceived: make(map[byte][]PeerMessage),
 	}
-	tr.BaseReactor = *NewBaseReactor("TestReactor", tr)
+	tr.BaseReactor = *NewBaseReactor("TestReactor", tr, 2)
 	tr.SetLogger(log.TestingLogger())
 	return tr
 }
@@ -790,7 +790,7 @@ func (r *mockReactor) InitCalledBeforeRemoveFinished() bool {
 func TestSwitchInitPeerIsNotCalledBeforeRemovePeer(t *testing.T) {
 	// make reactor
 	reactor := &mockReactor{}
-	reactor.BaseReactor = NewBaseReactor("mockReactor", reactor)
+	reactor.BaseReactor = NewBaseReactor("mockReactor", reactor, 1)
 
 	// make switch
 	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", func(i int, sw *Switch) *Switch {

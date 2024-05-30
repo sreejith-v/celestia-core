@@ -97,7 +97,7 @@ func NewReactor(mempool *TxPool, opts *ReactorOptions) (*Reactor, error) {
 		requests:    newRequestScheduler(opts.MaxGossipDelay, defaultGlobalRequestTimeout),
 		traceClient: trace.NoOpTracer(),
 	}
-	memR.BaseReactor = *p2p.NewBaseReactor("Mempool", memR)
+	memR.BaseReactor = *p2p.NewBaseReactor("Mempool", memR, 100)
 	return memR, nil
 }
 

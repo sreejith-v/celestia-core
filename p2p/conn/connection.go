@@ -27,15 +27,16 @@ import (
 var (
 	DefaultRecvBufferCapacity = 4096
 	defaultRecvBufferCapacity = DefaultRecvBufferCapacity
+
+	DefaultMaxPacketMsgPayloadSize = 1024
+
+	NumBatchPacketMsgs = 10
+	MinReadBufferSize  = 50000000
+	MinWriteBufferSize = 65536
 )
 
 const (
-	defaultMaxPacketMsgPayloadSize = 1024
-
-	numBatchPacketMsgs = 10
-	minReadBufferSize  = 50000000
-	minWriteBufferSize = 65536
-	updateStats        = 2 * time.Second
+	updateStats = 2 * time.Second
 
 	// some of these defaults are written in the user config
 	// flushThrottle, sendRate, recvRate
@@ -145,7 +146,7 @@ func DefaultMConnConfig() MConnConfig {
 	return MConnConfig{
 		SendRate:                defaultSendRate,
 		RecvRate:                defaultRecvRate,
-		MaxPacketMsgPayloadSize: defaultMaxPacketMsgPayloadSize,
+		MaxPacketMsgPayloadSize: DefaultMaxPacketMsgPayloadSize,
 		FlushThrottle:           defaultFlushThrottle,
 		PingInterval:            defaultPingInterval,
 		PongTimeout:             defaultPongTimeout,
@@ -181,8 +182,8 @@ func NewMConnectionWithConfig(
 
 	mconn := &MConnection{
 		conn:          conn,
-		bufConnReader: bufio.NewReaderSize(conn, minReadBufferSize),
-		bufConnWriter: bufio.NewWriterSize(conn, minWriteBufferSize),
+		bufConnReader: bufio.NewReaderSize(conn, MinReadBufferSize),
+		bufConnWriter: bufio.NewWriterSize(conn, MinWriteBufferSize),
 		sendMonitor:   flow.New(0, 0),
 		recvMonitor:   flow.New(0, 0),
 		send:          make(chan struct{}, 1),
@@ -512,7 +513,7 @@ func (c *MConnection) sendSomePacketMsgs() bool {
 	c.sendMonitor.Limit(c._maxPacketMsgSize, atomic.LoadInt64(&c.config.SendRate), true)
 
 	// Now send some PacketMsgs.
-	for i := 0; i < numBatchPacketMsgs; i++ {
+	for i := 0; i < NumBatchPacketMsgs; i++ {
 		if c.sendPacketMsg() {
 			return true
 		}
@@ -647,7 +648,7 @@ FOR_LOOP:
 				break FOR_LOOP
 			}
 			if msgBytes != nil {
-				c.Logger.Debug("Received bytes", "chID", channelID, "msgBytes", msgBytes)
+				// c.Logger.Debug("Received bytes", "chID", channelID, "msgBytes", msgBytes)
 				// NOTE: This means the reactor.Receive runs in the same thread as the p2p recv routine
 				c.onReceive(channelID, msgBytes)
 			}
