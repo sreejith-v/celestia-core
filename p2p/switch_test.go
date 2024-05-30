@@ -481,7 +481,7 @@ func TestSwitchStopPeerForError(t *testing.T) {
 	})
 
 	// now call StopPeerForError explicitly, eg. from a reactor
-	sw1.StopPeerForError(p, fmt.Errorf("some err"))
+	sw1.StopPeerForError(p, "test", fmt.Errorf("some err"))
 
 	assert.Equal(t, len(sw1.Peers().List()), 0)
 	assert.EqualValues(t, 0, peersMetricValue())
@@ -816,7 +816,7 @@ func TestSwitchInitPeerIsNotCalledBeforeRemovePeer(t *testing.T) {
 	for {
 		time.Sleep(20 * time.Millisecond)
 		if peer := sw.Peers().Get(rp.ID()); peer != nil {
-			go sw.StopPeerForError(peer, "test")
+			go sw.StopPeerForError(peer, "test", "test")
 			break
 		}
 	}
@@ -887,7 +887,7 @@ func TestSwitchRemovalErr(t *testing.T) {
 	assert.Equal(t, len(sw1.Peers().List()), 1)
 	p := sw1.Peers().List()[0]
 
-	sw2.StopPeerForError(p, fmt.Errorf("peer should error"))
+	sw2.StopPeerForError(p, "", fmt.Errorf("peer should error"))
 
 	assert.Equal(t, sw2.peers.Add(p).Error(), ErrPeerRemoval{}.Error())
 }

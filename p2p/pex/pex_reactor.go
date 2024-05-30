@@ -271,7 +271,7 @@ func (r *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		} else {
 			// Check we're not receiving requests too frequently.
 			if err := r.receiveRequest(e.Src); err != nil {
-				r.Switch.StopPeerForError(e.Src, err)
+				r.Switch.StopPeerForError(e.Src, r.String(), err)
 				r.book.MarkBad(e.Src.SocketAddr(), defaultBanTime)
 				return
 			}
@@ -282,13 +282,13 @@ func (r *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		// If we asked for addresses, add them to the book
 		addrs, err := p2p.NetAddressesFromProto(msg.Addrs)
 		if err != nil {
-			r.Switch.StopPeerForError(e.Src, err)
+			r.Switch.StopPeerForError(e.Src, r.String(), err)
 			r.book.MarkBad(e.Src.SocketAddr(), defaultBanTime)
 			return
 		}
 		err = r.ReceiveAddrs(addrs, e.Src)
 		if err != nil {
-			r.Switch.StopPeerForError(e.Src, err)
+			r.Switch.StopPeerForError(e.Src, r.String(), err)
 			if err == ErrUnsolicitedList {
 				r.book.MarkBad(e.Src.SocketAddr(), defaultBanTime)
 			}

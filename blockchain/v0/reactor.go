@@ -198,7 +198,7 @@ func (bcR *BlockchainReactor) respondToPeer(msg *bcproto.BlockRequest,
 func (bcR *BlockchainReactor) ReceiveEnvelope(e p2p.Envelope) {
 	if err := bc.ValidateMsg(e.Message); err != nil {
 		bcR.Logger.Error("Peer sent us invalid msg", "peer", e.Src, "msg", e.Message, "err", err)
-		bcR.Switch.StopPeerForError(e.Src, err)
+		bcR.Switch.StopPeerForError(e.Src, bcR.String(), err)
 		return
 	}
 
@@ -295,7 +295,7 @@ func (bcR *BlockchainReactor) poolRoutine(stateSynced bool) {
 			case err := <-bcR.errorsCh:
 				peer := bcR.Switch.Peers().Get(err.peerID)
 				if peer != nil {
-					bcR.Switch.StopPeerForError(peer, err)
+					bcR.Switch.StopPeerForError(peer, bcR.String(), err)
 				}
 
 			case <-statusUpdateTicker.C:
@@ -393,14 +393,14 @@ FOR_LOOP:
 				if peer != nil {
 					// NOTE: we've already removed the peer's request, but we
 					// still need to clean up the rest.
-					bcR.Switch.StopPeerForError(peer, fmt.Errorf("blockchainReactor validation error: %v", err))
+					bcR.Switch.StopPeerForError(peer, bcR.String(), fmt.Errorf("blockchainReactor validation error: %v", err))
 				}
 				peerID2 := bcR.pool.RedoRequest(second.Height)
 				peer2 := bcR.Switch.Peers().Get(peerID2)
 				if peer2 != nil && peer2 != peer {
 					// NOTE: we've already removed the peer's request, but we
 					// still need to clean up the rest.
-					bcR.Switch.StopPeerForError(peer2, fmt.Errorf("blockchainReactor validation error: %v", err))
+					bcR.Switch.StopPeerForError(peer2, bcR.String(), fmt.Errorf("blockchainReactor validation error: %v", err))
 				}
 				continue FOR_LOOP
 			}

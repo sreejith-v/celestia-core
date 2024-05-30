@@ -36,9 +36,9 @@ func (spbr *SwitchReporter) Report(behaviour PeerBehaviour) error {
 	case consensusVote, blockPart:
 		spbr.sw.MarkPeerAsGood(peer)
 	case badMessage:
-		spbr.sw.StopPeerForError(peer, reason.explanation)
+		spbr.sw.StopPeerForError(peer, "switch reporter", reason.explanation)
 	case messageOutOfOrder:
-		spbr.sw.StopPeerForError(peer, reason.explanation)
+		spbr.sw.StopPeerForError(peer, "switch reporter", reason.explanation)
 	default:
 		return errors.New("unknown reason reported")
 	}

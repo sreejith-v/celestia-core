@@ -255,7 +255,7 @@ func (sw *Switch) OnStart() error {
 func (sw *Switch) OnStop() {
 	// Stop peers
 	for _, p := range sw.peers.List() {
-		sw.stopAndRemovePeer(p, nil)
+		sw.stopAndRemovePeer(p, "switch", nil)
 	}
 
 	// Stop reactors
@@ -372,13 +372,13 @@ func (sw *Switch) Peers() IPeerSet {
 // StopPeerForError disconnects from a peer due to external error.
 // If the peer is persistent, it will attempt to reconnect.
 // TODO: make record depending on reason.
-func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
+func (sw *Switch) StopPeerForError(peer Peer, reactor string, reason interface{}) {
 	if !peer.IsRunning() {
 		return
 	}
 
-	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", reason)
-	sw.stopAndRemovePeer(peer, reason)
+	sw.Logger.Error("Stopping peer for error", "reactor", reactor, "peer", peer, "err", reason)
+	sw.stopAndRemovePeer(peer, reactor, reason)
 
 	if peer.IsPersistent() {
 		var addr *NetAddress
@@ -401,12 +401,12 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 // TODO: handle graceful disconnects.
 func (sw *Switch) StopPeerGracefully(peer Peer) {
 	sw.Logger.Info("Stopping peer gracefully")
-	sw.stopAndRemovePeer(peer, nil)
+	sw.stopAndRemovePeer(peer, "", nil)
 }
 
-func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
+func (sw *Switch) stopAndRemovePeer(peer Peer, reactor string, reason interface{}) {
 	sw.transport.Cleanup(peer)
-	schema.WritePeerUpdate(sw.traceClient, string(peer.ID()), schema.PeerDisconnect, fmt.Sprintf("%v", reason))
+	schema.WritePeerUpdate(sw.traceClient, string(peer.ID()), schema.PeerDisconnect, reactor, fmt.Sprintf("%s: %v", reactor, reason))
 	if err := peer.Stop(); err != nil {
 		sw.Logger.Error("error while stopping peer", "error", err) // TODO: should return error to be handled accordingly
 	}
@@ -892,7 +892,7 @@ func (sw *Switch) addPeer(p Peer) error {
 		return err
 	}
 	sw.metrics.Peers.Add(float64(1))
-	schema.WritePeerUpdate(sw.traceClient, string(p.ID()), schema.PeerJoin, "")
+	schema.WritePeerUpdate(sw.traceClient, string(p.ID()), schema.PeerJoin, "switch", "")
 
 	// Start all the reactor protocols on the peer.
 	for _, reactor := range sw.reactors {

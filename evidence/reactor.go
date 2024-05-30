@@ -72,7 +72,7 @@ func (evR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 	evis, err := evidenceListFromProto(e.Message)
 	if err != nil {
 		evR.Logger.Error("Error decoding message", "src", e.Src, "chId", e.ChannelID, "err", err)
-		evR.Switch.StopPeerForError(e.Src, err)
+		evR.Switch.StopPeerForError(e.Src, evR.String(), err)
 		return
 	}
 
@@ -82,7 +82,7 @@ func (evR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		case *types.ErrInvalidEvidence:
 			evR.Logger.Error(err.Error())
 			// punish peer
-			evR.Switch.StopPeerForError(e.Src, err)
+			evR.Switch.StopPeerForError(e.Src, evR.String(), err)
 			return
 		case nil:
 		default:

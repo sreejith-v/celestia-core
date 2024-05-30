@@ -200,7 +200,7 @@ func newPeer(
 	reactorsByCh map[byte]Reactor,
 	msgTypeByChID map[byte]proto.Message,
 	chDescs []*cmtconn.ChannelDescriptor,
-	onPeerError func(Peer, interface{}),
+	onPeerError func(Peer, string, interface{}),
 	mlc *metricsLabelCache,
 	options ...PeerOption,
 ) *peer {
@@ -527,7 +527,7 @@ func createMConnection(
 	reactorsByCh map[byte]Reactor,
 	msgTypeByChID map[byte]proto.Message,
 	chDescs []*cmtconn.ChannelDescriptor,
-	onPeerError func(Peer, interface{}),
+	onPeerError func(Peer, string, interface{}),
 	config cmtconn.MConnConfig,
 ) *cmtconn.MConnection {
 
@@ -567,12 +567,13 @@ func createMConnection(
 				Message:   msg,
 			})
 		} else {
+			p.Logger.Info("ReceiveEnvelope not implemented", "channel", chID)
 			reactor.Receive(chID, p, msgBytes)
 		}
 	}
 
-	onError := func(r interface{}) {
-		onPeerError(p, r)
+	onError := func(reactor string, r interface{}) {
+		onPeerError(p, reactor, r)
 	}
 
 	return cmtconn.NewMConnectionWithConfig(

@@ -30,9 +30,10 @@ const (
 
 // PeerUpdate describes schema for the "peer_update" table.
 type PeerUpdate struct {
-	PeerID string `json:"peer_id"`
-	Action string `json:"action"`
-	Reason string `json:"reason"`
+	PeerID  string `json:"peer_id"`
+	Reactor string `json:"reactor"`
+	Action  string `json:"action"`
+	Reason  string `json:"reason"`
 }
 
 // Table returns the table name for the PeerUpdate struct.
@@ -54,8 +55,8 @@ func (p PeerUpdate) GetReason() string {
 
 // WritePeerUpdate writes a tracing point for a peer update using the predetermined
 // schema for p2p tracing.
-func WritePeerUpdate(client trace.Tracer, peerID string, action P2PPeerUpdate, reason string) {
-	client.Write(PeerUpdate{PeerID: peerID, Action: string(action), Reason: reason})
+func WritePeerUpdate(client trace.Tracer, peerID string, action P2PPeerUpdate, reactor, reason string) {
+	client.Write(PeerUpdate{PeerID: peerID, Action: string(action), Reactor: reactor, Reason: reason})
 }
 
 const (

@@ -53,7 +53,7 @@ const (
 )
 
 type receiveCbFunc func(chID byte, msgBytes []byte)
-type errorCbFunc func(interface{})
+type errorCbFunc func(string, interface{})
 
 /*
 Each peer has one `MConnection` (multiplex connection) instance.
@@ -337,17 +337,17 @@ func (c *MConnection) flush() {
 func (c *MConnection) _recover() {
 	if r := recover(); r != nil {
 		c.Logger.Error("MConnection panicked", "err", r, "stack", string(debug.Stack()))
-		c.stopForError(fmt.Errorf("recovered from panic: %v", r))
+		c.stopForError("panicked", fmt.Errorf("recovered from panic: %v %s", r, string(debug.Stack())))
 	}
 }
 
-func (c *MConnection) stopForError(r interface{}) {
+func (c *MConnection) stopForError(reactor string, r interface{}) {
 	if err := c.Stop(); err != nil {
 		c.Logger.Error("Error stopping connection", "err", err)
 	}
 	if atomic.CompareAndSwapUint32(&c.errored, 0, 1) {
 		if c.onError != nil {
-			c.onError(r)
+			c.onError(reactor, r)
 		}
 	}
 }
@@ -494,7 +494,7 @@ FOR_LOOP:
 		}
 		if err != nil {
 			c.Logger.Error("Connection failed @ sendRoutine", "conn", c, "err", err)
-			c.stopForError(err)
+			c.stopForError("send routine", err)
 			break FOR_LOOP
 		}
 	}
@@ -550,7 +550,7 @@ func (c *MConnection) sendPacketMsg() bool {
 	_n, err := leastChannel.writePacketMsgTo(c.bufConnWriter)
 	if err != nil {
 		c.Logger.Error("Failed to write PacketMsg", "err", err)
-		c.stopForError(err)
+		c.stopForError("send packet msg", err)
 		return true
 	}
 	c.sendMonitor.Update(_n)
@@ -606,7 +606,7 @@ FOR_LOOP:
 				} else {
 					c.Logger.Debug("Connection failed @ recvRoutine (reading byte)", "conn", c, "err", err)
 				}
-				c.stopForError(err)
+				c.stopForError("recv routine", err)
 			}
 			break FOR_LOOP
 		}
@@ -635,7 +635,7 @@ FOR_LOOP:
 			if pkt.PacketMsg.ChannelID < 0 || pkt.PacketMsg.ChannelID > math.MaxUint8 || !ok || channel == nil {
 				err := fmt.Errorf("unknown channel %X", pkt.PacketMsg.ChannelID)
 				c.Logger.Debug("Connection failed @ recvRoutine", "conn", c, "err", err)
-				c.stopForError(err)
+				c.stopForError("recv routine", err)
 				break FOR_LOOP
 			}
 
@@ -643,7 +643,7 @@ FOR_LOOP:
 			if err != nil {
 				if c.IsRunning() {
 					c.Logger.Debug("Connection failed @ recvRoutine", "conn", c, "err", err)
-					c.stopForError(err)
+					c.stopForError("recv routine", err)
 				}
 				break FOR_LOOP
 			}
@@ -655,7 +655,7 @@ FOR_LOOP:
 		default:
 			err := fmt.Errorf("unknown message type %v", reflect.TypeOf(packet))
 			c.Logger.Error("Connection failed @ recvRoutine", "conn", c, "err", err)
-			c.stopForError(err)
+			c.stopForError("recv routine", err)
 			break FOR_LOOP
 		}
 	}
