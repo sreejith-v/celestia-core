@@ -521,6 +521,10 @@ func (p *peer) metricsReporter() {
 //------------------------------------------------------------------
 // helper funcs
 
+var (
+	UseBufferedReceives = false
+)
+
 func createMConnection(
 	conn net.Conn,
 	p *peer,
@@ -532,6 +536,7 @@ func createMConnection(
 ) *cmtconn.MConnection {
 
 	onReceive := func(chID byte, msgBytes []byte) {
+		start := time.Now()
 		reactor := reactorsByCh[chID]
 		if reactor == nil {
 			// Note that its ok to panic here as it's caught in the conn._recover,
@@ -561,15 +566,22 @@ func createMConnection(
 		// p.metrics.MessageReceiveBytesTotal.With(append(labels, "message_type", p.mlc.ValueToMetricLabel(msg))...).Add(float64(len(msgBytes)))
 		// schema.WriteReceivedBytes(p.traceClient, string(p.ID()), chID, len(msgBytes))
 		if nr, ok := reactor.(EnvelopeReceiver); ok {
-			nr.AsyncReceiveEnvelope(Envelope{
+			e := Envelope{
 				ChannelID: chID,
 				Src:       p,
 				Message:   msg,
-			})
+			}
+			if UseBufferedReceives {
+				nr.AsyncReceiveEnvelope(e)
+			} else {
+				nr.ReceiveEnvelope(e)
+			}
 		} else {
 			p.Logger.Info("ReceiveEnvelope not implemented", "channel", chID)
 			reactor.Receive(chID, p, msgBytes)
 		}
+		end := time.Now()
+		schema.WriteMessageProcessing(p.traceClient, chID, end.Sub(start))
 	}
 
 	onError := func(reactor string, r interface{}) {

@@ -1,6 +1,10 @@
 package schema
 
-import "github.com/tendermint/tendermint/pkg/trace"
+import (
+	"time"
+
+	"github.com/tendermint/tendermint/pkg/trace"
+)
 
 // P2PTables returns the list of tables that are used for p2p tracing.
 func P2PTables() []string {
@@ -8,6 +12,7 @@ func P2PTables() []string {
 		PeersTable,
 		PendingBytesTable,
 		ReceivedBytesTable,
+		MessageProcessingTable,
 	}
 }
 
@@ -92,4 +97,21 @@ func (s ReceivedBytes) Table() string {
 
 func WriteReceivedBytes(client trace.Tracer, peerID string, channel byte, bytes int) {
 	client.Write(ReceivedBytes{PeerID: peerID, Channel: channel, Bytes: bytes})
+}
+
+const (
+	MessageProcessingTable = "proc"
+)
+
+type MessageProcessing struct {
+	Time    time.Duration `json:"dur"`
+	Channel byte          `json:"chan"`
+}
+
+func (m MessageProcessing) Table() string {
+	return MessageProcessingTable
+}
+
+func WriteMessageProcessing(client trace.Tracer, channel byte, dur time.Duration) {
+	client.Write(MessageProcessing{Time: dur, Channel: channel})
 }
