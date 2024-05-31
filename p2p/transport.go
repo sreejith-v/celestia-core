@@ -214,6 +214,8 @@ func (mt *MultiplexTransport) Accept(cfg peerConfig) (Peer, error) {
 }
 
 var (
+	SetTCPBuffers        = false
+	SetTCPKeepAlive      = true
 	TCPSocketReadBuffer  = 1024 * 1024
 	TCPSocketWriteBuffer = 1024 * 1024
 )
@@ -229,9 +231,12 @@ func (mt *MultiplexTransport) Dial(
 	}
 
 	tcpConn := c.(*net.TCPConn)
-	tcpConn.SetKeepAlive(true)
-	tcpConn.SetReadBuffer(TCPSocketReadBuffer)
-	tcpConn.SetWriteBuffer(TCPSocketWriteBuffer)
+
+	if SetTCPBuffers {
+		tcpConn.SetKeepAlive(true)
+		tcpConn.SetReadBuffer(TCPSocketReadBuffer)
+		tcpConn.SetWriteBuffer(TCPSocketWriteBuffer)
+	}
 
 	c = tcpConn
 

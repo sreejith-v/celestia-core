@@ -32,7 +32,7 @@ var (
 
 	NumBatchPacketMsgs = 65
 	MinReadBufferSize  = 1024 * 1024 * 4
-	MinWriteBufferSize = 1024 * 1024 * 4
+	MinWriteBufferSize = 1024 * 1024 * 64
 )
 
 const (
