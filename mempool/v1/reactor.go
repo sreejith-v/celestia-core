@@ -93,6 +93,10 @@ func newMempoolIDs() *mempoolIDs {
 	}
 }
 
+var (
+	EnvelopeBuffer = 100
+)
+
 // NewReactor returns a new Reactor with the given config and mempool.
 func NewReactor(config *cfg.MempoolConfig, mempool *TxMempool, traceClient trace.Tracer) *Reactor {
 	memR := &Reactor{
@@ -101,7 +105,7 @@ func NewReactor(config *cfg.MempoolConfig, mempool *TxMempool, traceClient trace
 		ids:         newMempoolIDs(),
 		traceClient: traceClient,
 	}
-	memR.BaseReactor = *p2p.NewBaseReactor("Mempool", memR, 10)
+	memR.BaseReactor = *p2p.NewBaseReactor("Mempool", memR, EnvelopeBuffer)
 	return memR
 }
 

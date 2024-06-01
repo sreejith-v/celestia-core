@@ -522,7 +522,7 @@ func (p *peer) metricsReporter() {
 // helper funcs
 
 var (
-	UseBufferedReceives = false
+	UseBufferedReceives = true
 )
 
 func createMConnection(

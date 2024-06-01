@@ -55,6 +55,10 @@ type Reactor struct {
 
 type ReactorOption func(*Reactor)
 
+var (
+	EnvelopeBuffer = 2000
+)
+
 // NewReactor returns a new Reactor with the given
 // consensusState.
 func NewReactor(consensusState *State, waitSync bool, options ...ReactorOption) *Reactor {
@@ -65,7 +69,7 @@ func NewReactor(consensusState *State, waitSync bool, options ...ReactorOption) 
 		Metrics:     NopMetrics(),
 		traceClient: trace.NoOpTracer(),
 	}
-	conR.BaseReactor = *p2p.NewBaseReactor("Consensus", conR, 1000)
+	conR.BaseReactor = *p2p.NewBaseReactor("Consensus", conR, EnvelopeBuffer)
 
 	for _, option := range options {
 		option(conR)
