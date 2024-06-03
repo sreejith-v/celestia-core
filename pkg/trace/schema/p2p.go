@@ -13,6 +13,7 @@ func P2PTables() []string {
 		PendingBytesTable,
 		ReceivedBytesTable,
 		MessageProcessingTable,
+		GenericTraceTable,
 	}
 }
 
@@ -115,3 +116,23 @@ func (m MessageProcessing) Table() string {
 func WriteMessageProcessing(client trace.Tracer, channel byte, dur time.Duration) {
 	client.Write(MessageProcessing{Time: dur, Channel: channel})
 }
+
+const (
+	GenericTraceTable = "g_t"
+)
+
+type GenericTrace struct {
+	Status int         `json:"stat"`
+	Type   string      `json:"type,omitempty"`
+	Data   interface{} `json:"data,omitempty"`
+}
+
+func (q GenericTrace) Table() string {
+	return GenericTraceTable
+}
+
+func WriteGenericTrace(client trace.Tracer, status int, typ string, data interface{}) {
+	client.Write(GenericTrace{Status: status, Type: typ, Data: data})
+}
+
+type Times []time.Time

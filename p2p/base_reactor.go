@@ -3,6 +3,8 @@ package p2p
 import (
 	"github.com/tendermint/tendermint/libs/service"
 	"github.com/tendermint/tendermint/p2p/conn"
+	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/tendermint/tendermint/pkg/trace/schema"
 )
 
 // Reactor is responsible for handling incoming messages on one or more
@@ -61,7 +63,7 @@ type EnvelopeReceiver interface {
 	// is implemented, it will be used, otherwise the switch will fallback to
 	// using Receive. Receive will be replaced by ReceiveEnvelope in a future version
 	ReceiveEnvelope(Envelope)
-	AsyncReceiveEnvelope(e Envelope)
+	AsyncReceiveEnvelope(tracer trace.Tracer, e Envelope)
 }
 
 //--------------------------------------
@@ -93,8 +95,13 @@ func NewBaseReactor(name string, impl Reactor, bufferSize int) *BaseReactor {
 	return r
 }
 
-func (r *BaseReactor) AsyncReceiveEnvelope(e Envelope) {
-	r.envelopes <- e
+func (r *BaseReactor) AsyncReceiveEnvelope(tracer trace.Tracer, e Envelope) {
+	select {
+	case r.envelopes <- e:
+	default:
+		schema.WriteGenericTrace(tracer, -1, "full_q", e.ChannelID)
+		r.envelopes <- e
+	}
 }
 
 func (r *BaseReactor) ProcessEnvelopes(receiver EnvelopeReceiver) {

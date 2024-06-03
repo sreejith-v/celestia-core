@@ -572,7 +572,7 @@ func createMConnection(
 				Message:   msg,
 			}
 			if UseBufferedReceives {
-				nr.AsyncReceiveEnvelope(e)
+				nr.AsyncReceiveEnvelope(p.traceClient, e)
 			} else {
 				nr.ReceiveEnvelope(e)
 			}
