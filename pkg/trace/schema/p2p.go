@@ -105,16 +105,17 @@ const (
 )
 
 type MessageProcessing struct {
-	Time    time.Duration `json:"dur"`
-	Channel byte          `json:"chan"`
+	Time       time.Duration `json:"dur"`
+	Channel    byte          `json:"chan"`
+	BufferSize int           `json:"bs"`
 }
 
 func (m MessageProcessing) Table() string {
 	return MessageProcessingTable
 }
 
-func WriteMessageProcessing(client trace.Tracer, channel byte, dur time.Duration) {
-	client.Write(MessageProcessing{Time: dur, Channel: channel})
+func WriteMessageProcessing(client trace.Tracer, channel byte, dur time.Duration, bufferSize int) {
+	client.Write(MessageProcessing{Time: dur, Channel: channel, BufferSize: bufferSize})
 }
 
 const (

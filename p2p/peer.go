@@ -565,6 +565,7 @@ func createMConnection(
 		// p.metrics.PeerReceiveBytesTotal.With(labels...).Add(float64(len(msgBytes)))
 		// p.metrics.MessageReceiveBytesTotal.With(append(labels, "message_type", p.mlc.ValueToMetricLabel(msg))...).Add(float64(len(msgBytes)))
 		// schema.WriteReceivedBytes(p.traceClient, string(p.ID()), chID, len(msgBytes))
+		bufferSize := 0
 		if nr, ok := reactor.(EnvelopeReceiver); ok {
 			e := Envelope{
 				ChannelID: chID,
@@ -572,7 +573,7 @@ func createMConnection(
 				Message:   msg,
 			}
 			if UseBufferedReceives {
-				nr.AsyncReceiveEnvelope(p.traceClient, e)
+				bufferSize = nr.AsyncReceiveEnvelope(p.traceClient, e)
 			} else {
 				nr.ReceiveEnvelope(e)
 			}
@@ -581,7 +582,7 @@ func createMConnection(
 			reactor.Receive(chID, p, msgBytes)
 		}
 		end := time.Now()
-		schema.WriteMessageProcessing(p.traceClient, chID, end.Sub(start))
+		schema.WriteMessageProcessing(p.traceClient, chID, end.Sub(start), bufferSize)
 	}
 
 	onError := func(reactor string, r interface{}) {

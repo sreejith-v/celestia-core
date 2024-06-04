@@ -63,7 +63,7 @@ type EnvelopeReceiver interface {
 	// is implemented, it will be used, otherwise the switch will fallback to
 	// using Receive. Receive will be replaced by ReceiveEnvelope in a future version
 	ReceiveEnvelope(Envelope)
-	AsyncReceiveEnvelope(tracer trace.Tracer, e Envelope)
+	AsyncReceiveEnvelope(tracer trace.Tracer, e Envelope) int
 }
 
 //--------------------------------------
@@ -95,13 +95,14 @@ func NewBaseReactor(name string, impl Reactor, bufferSize int) *BaseReactor {
 	return r
 }
 
-func (r *BaseReactor) AsyncReceiveEnvelope(tracer trace.Tracer, e Envelope) {
+func (r *BaseReactor) AsyncReceiveEnvelope(tracer trace.Tracer, e Envelope) int {
 	select {
 	case r.envelopes <- e:
 	default:
 		schema.WriteGenericTrace(tracer, -1, "full_q", e.ChannelID)
 		r.envelopes <- e
 	}
+	return len(r.envelopes)
 }
 
 func (r *BaseReactor) ProcessEnvelopes(receiver EnvelopeReceiver) {
