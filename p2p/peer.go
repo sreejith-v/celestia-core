@@ -536,7 +536,7 @@ func createMConnection(
 ) *cmtconn.MConnection {
 
 	onReceive := func(chID byte, msgBytes []byte) {
-		start := time.Now()
+		// start := time.Now()
 		reactor := reactorsByCh[chID]
 		if reactor == nil {
 			// Note that its ok to panic here as it's caught in the conn._recover,
@@ -564,8 +564,8 @@ func createMConnection(
 
 		// p.metrics.PeerReceiveBytesTotal.With(labels...).Add(float64(len(msgBytes)))
 		// p.metrics.MessageReceiveBytesTotal.With(append(labels, "message_type", p.mlc.ValueToMetricLabel(msg))...).Add(float64(len(msgBytes)))
-		// schema.WriteReceivedBytes(p.traceClient, string(p.ID()), chID, len(msgBytes))
-		bufferSize := 0
+		schema.WriteReceivedBytes(p.traceClient, string(p.ID()), chID, len(msgBytes))
+		// bufferSize := 0
 		if nr, ok := reactor.(EnvelopeReceiver); ok {
 			e := Envelope{
 				ChannelID: chID,
@@ -573,7 +573,7 @@ func createMConnection(
 				Message:   msg,
 			}
 			if UseBufferedReceives {
-				bufferSize = nr.AsyncReceiveEnvelope(p.traceClient, e)
+				nr.AsyncReceiveEnvelope(p.traceClient, e)
 			} else {
 				nr.ReceiveEnvelope(e)
 			}
@@ -581,8 +581,8 @@ func createMConnection(
 			p.Logger.Info("ReceiveEnvelope not implemented", "channel", chID)
 			reactor.Receive(chID, p, msgBytes)
 		}
-		end := time.Now()
-		schema.WriteMessageProcessing(p.traceClient, chID, end.Sub(start), bufferSize)
+		// end := time.Now()
+		// schema.WriteMessageProcessing(p.traceClient, chID, end.Sub(start), bufferSize)
 	}
 
 	onError := func(reactor string, r interface{}) {
