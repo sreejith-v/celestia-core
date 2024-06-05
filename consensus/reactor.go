@@ -1152,42 +1152,35 @@ func (conR *Reactor) peerStatsRoutine() {
 		}
 
 		select {
-		case <-time.After(time.Second * 10):
-			// // Get peer
-			// peer := conR.Switch.Peers().Get(msg.PeerID)
-			// if peer == nil {
-			// 	conR.Logger.Debug("Attempt to update stats for non-existent peer",
-			// 		"peer", msg.PeerID)
-			// 	continue
-			// }
-			// // Get peer state
-			// ps, ok := peer.Get(types.PeerStateKey).(*PeerState)
-			// if !ok {
-			// 	panic(fmt.Sprintf("Peer %v has no state", peer))
-			// }
-			// switch msg.Msg.(type) {
-			// case *VoteMessage:
-			// 	if numVotes := ps.RecordVote(); numVotes%votesToContributeToBecomeGoodPeer == 0 {
-			// 		conR.Switch.MarkPeerAsGood(peer)
-			// 	}
-			// case *BlockPartMessage:
-			// 	if numParts := ps.RecordBlockPart(); numParts%blocksToContributeToBecomeGoodPeer == 0 {
-			// 		conR.Switch.MarkPeerAsGood(peer)
-			// 	}
-			// }
-			conR.MarkAllGood()
+		case msg := <-conR.conS.statsMsgQueue:
+			// Get peer
+			peer := conR.Switch.Peers().Get(msg.PeerID)
+			if peer == nil {
+				conR.Logger.Debug("Attempt to update stats for non-existent peer",
+					"peer", msg.PeerID)
+				continue
+			}
+			// Get peer state
+			ps, ok := peer.Get(types.PeerStateKey).(*PeerState)
+			if !ok {
+				panic(fmt.Sprintf("Peer %v has no state", peer))
+			}
+			switch msg.Msg.(type) {
+			case *VoteMessage:
+				if numVotes := ps.RecordVote(); numVotes%votesToContributeToBecomeGoodPeer == 0 {
+					conR.Switch.MarkPeerAsGood(peer)
+				}
+			case *BlockPartMessage:
+				if numParts := ps.RecordBlockPart(); numParts%blocksToContributeToBecomeGoodPeer == 0 {
+					conR.Switch.MarkPeerAsGood(peer)
+				}
+			}
 		case <-conR.conS.Quit():
 			return
 
 		case <-conR.Quit():
 			return
 		}
-	}
-}
-
-func (conR *Reactor) MarkAllGood() {
-	for _, peer := range conR.Switch.Peers().List() {
-		conR.Switch.MarkPeerAsGood(peer)
 	}
 }
 
