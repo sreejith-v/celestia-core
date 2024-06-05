@@ -866,10 +866,7 @@ func (cs *State) handleMsg(mi msgInfo) {
 			cs.handleCompleteProposal(msg.Height)
 		}
 		if added {
-			select {
-			case cs.statsMsgQueue <- mi:
-			default:
-			}
+			cs.statsMsgQueue <- mi
 		}
 
 		if err != nil && msg.Round != cs.Round {
@@ -887,10 +884,7 @@ func (cs *State) handleMsg(mi msgInfo) {
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
 		added, err = cs.tryAddVote(msg.Vote, peerID)
 		if added {
-			select {
-			case cs.statsMsgQueue <- mi:
-			default:
-			}
+			cs.statsMsgQueue <- mi
 		}
 
 		// if err == ErrAddingVote {
