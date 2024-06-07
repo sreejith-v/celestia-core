@@ -65,7 +65,7 @@ func TestSecretConnectionHandshake(t *testing.T) {
 
 func TestConcurrentWrite(t *testing.T) {
 	fooSecConn, barSecConn := makeSecretConnPair(t)
-	fooWriteText := cmtrand.Str(dataMaxSize)
+	fooWriteText := cmtrand.Str(DataMaxSize)
 
 	// write from two routines.
 	// should be safe from race according to net.Conn:
@@ -87,7 +87,7 @@ func TestConcurrentWrite(t *testing.T) {
 
 func TestConcurrentRead(t *testing.T) {
 	fooSecConn, barSecConn := makeSecretConnPair(t)
-	fooWriteText := cmtrand.Str(dataMaxSize)
+	fooWriteText := cmtrand.Str(DataMaxSize)
 	n := 100
 
 	// read from two routines.
@@ -114,8 +114,8 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 
 	// Pre-generate the things to write (for foo & bar)
 	for i := 0; i < 100; i++ {
-		fooWrites = append(fooWrites, cmtrand.Str((cmtrand.Int()%(dataMaxSize*5))+1))
-		barWrites = append(barWrites, cmtrand.Str((cmtrand.Int()%(dataMaxSize*5))+1))
+		fooWrites = append(fooWrites, cmtrand.Str((cmtrand.Int()%(DataMaxSize*5))+1))
+		barWrites = append(barWrites, cmtrand.Str((cmtrand.Int()%(DataMaxSize*5))+1))
 	}
 
 	// A helper that will run with (fooConn, fooWrites, fooReads) and vice versa
@@ -152,7 +152,7 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 				},
 				func(_ int) (interface{}, bool, error) {
 					// Node reads:
-					readBuffer := make([]byte, dataMaxSize)
+					readBuffer := make([]byte, DataMaxSize)
 					for {
 						n, err := nodeSecretConn.Read(readBuffer)
 						if err == io.EOF {
@@ -190,7 +190,7 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 	require.True(t, ok, "unexpected task abortion")
 
 	// A helper to ensure that the writes and reads match.
-	// Additionally, small writes (<= dataMaxSize) must be atomically read.
+	// Additionally, small writes (<= DataMaxSize) must be atomically read.
 	compareWritesReads := func(writes []string, reads []string) {
 		for {
 			// Pop next write & corresponding reads
@@ -203,7 +203,7 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 				if len(write) <= len(read) {
 					break
 				}
-				if len(write) <= dataMaxSize {
+				if len(write) <= DataMaxSize {
 					break // atomicity of small writes
 				}
 			}
@@ -298,7 +298,7 @@ func writeLots(t *testing.T, wg *sync.WaitGroup, conn io.Writer, txt string, n i
 }
 
 func readLots(t *testing.T, wg *sync.WaitGroup, conn io.Reader, n int) {
-	readBuffer := make([]byte, dataMaxSize)
+	readBuffer := make([]byte, DataMaxSize)
 	for i := 0; i < n; i++ {
 		_, err := conn.Read(readBuffer)
 		assert.NoError(t, err)
@@ -388,13 +388,13 @@ func BenchmarkWriteSecretConnection(b *testing.B) {
 	b.ReportAllocs()
 	fooSecConn, barSecConn := makeSecretConnPair(b)
 	randomMsgSizes := []int{
-		dataMaxSize / 10,
-		dataMaxSize / 3,
-		dataMaxSize / 2,
-		dataMaxSize,
-		dataMaxSize * 3 / 2,
-		dataMaxSize * 2,
-		dataMaxSize * 7 / 2,
+		DataMaxSize / 10,
+		DataMaxSize / 3,
+		DataMaxSize / 2,
+		DataMaxSize,
+		DataMaxSize * 3 / 2,
+		DataMaxSize * 2,
+		DataMaxSize * 7 / 2,
 	}
 	fooWriteBytes := make([][]byte, 0, len(randomMsgSizes))
 	for _, size := range randomMsgSizes {
@@ -402,7 +402,7 @@ func BenchmarkWriteSecretConnection(b *testing.B) {
 	}
 	// Consume reads from bar's reader
 	go func() {
-		readBuffer := make([]byte, dataMaxSize)
+		readBuffer := make([]byte, DataMaxSize)
 		for {
 			_, err := barSecConn.Read(readBuffer)
 			if err == io.EOF {
@@ -436,13 +436,13 @@ func BenchmarkReadSecretConnection(b *testing.B) {
 	b.ReportAllocs()
 	fooSecConn, barSecConn := makeSecretConnPair(b)
 	randomMsgSizes := []int{
-		dataMaxSize / 10,
-		dataMaxSize / 3,
-		dataMaxSize / 2,
-		dataMaxSize,
-		dataMaxSize * 3 / 2,
-		dataMaxSize * 2,
-		dataMaxSize * 7 / 2,
+		DataMaxSize / 10,
+		DataMaxSize / 3,
+		DataMaxSize / 2,
+		DataMaxSize,
+		DataMaxSize * 3 / 2,
+		DataMaxSize * 2,
+		DataMaxSize * 7 / 2,
 	}
 	fooWriteBytes := make([][]byte, 0, len(randomMsgSizes))
 	for _, size := range randomMsgSizes {
@@ -461,7 +461,7 @@ func BenchmarkReadSecretConnection(b *testing.B) {
 
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		readBuffer := make([]byte, dataMaxSize)
+		readBuffer := make([]byte, DataMaxSize)
 		_, err := barSecConn.Read(readBuffer)
 
 		if err == io.EOF {

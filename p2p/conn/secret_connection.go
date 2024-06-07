@@ -30,11 +30,16 @@ import (
 	tmp2p "github.com/tendermint/tendermint/proto/tendermint/p2p"
 )
 
+var (
+	DataMaxSize     = 1024
+	DataMaxSizeUint = uint32(DataMaxSize)
+	totalFrameSize  = DataMaxSize + dataLenSize
+)
+
 // 4 + 1024 == 1028 total frame size
 const (
-	dataLenSize      = 4
-	dataMaxSize      = 1024
-	totalFrameSize   = dataMaxSize + dataLenSize
+	dataLenSize = 4
+
 	aeadSizeOverhead = 16 // overhead of poly 1305 authentication tag
 	aeadKeySize      = chacha20poly1305.KeySize
 	aeadNonceSize    = chacha20poly1305.NonceSize
@@ -185,7 +190,7 @@ func (sc *SecretConnection) RemotePubKey() crypto.PubKey {
 }
 
 // Writes encrypted frames of `totalFrameSize + aeadSizeOverhead`.
-// CONTRACT: data smaller than dataMaxSize is written atomically.
+// CONTRACT: data smaller than DataMaxSize is written atomically.
 func (sc *SecretConnection) Write(data []byte) (n int, err error) {
 	sc.sendMtx.Lock()
 	defer sc.sendMtx.Unlock()
@@ -199,9 +204,9 @@ func (sc *SecretConnection) Write(data []byte) (n int, err error) {
 				pool.Put(frame)
 			}()
 			var chunk []byte
-			if dataMaxSize < len(data) {
-				chunk = data[:dataMaxSize]
-				data = data[dataMaxSize:]
+			if DataMaxSize < len(data) {
+				chunk = data[:DataMaxSize]
+				data = data[DataMaxSize:]
 			} else {
 				chunk = data
 				data = nil
@@ -228,7 +233,7 @@ func (sc *SecretConnection) Write(data []byte) (n int, err error) {
 	return n, err
 }
 
-// CONTRACT: data smaller than dataMaxSize is read atomically.
+// CONTRACT: data smaller than DataMaxSize is read atomically.
 func (sc *SecretConnection) Read(data []byte) (n int, err error) {
 	sc.recvMtx.Lock()
 	defer sc.recvMtx.Unlock()
@@ -262,8 +267,8 @@ func (sc *SecretConnection) Read(data []byte) (n int, err error) {
 	// copy checkLength worth into data,
 	// set recvBuffer to the rest.
 	var chunkLength = binary.LittleEndian.Uint32(frame) // read the first four bytes
-	if chunkLength > dataMaxSize {
-		return 0, errors.New("chunkLength is greater than dataMaxSize")
+	if chunkLength > DataMaxSizeUint {
+		return 0, errors.New("chunkLength is greater than DataMaxSize")
 	}
 	var chunk = frame[dataLenSize : dataLenSize+chunkLength]
 	n = copy(data, chunk)
