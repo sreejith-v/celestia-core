@@ -33,8 +33,14 @@ import (
 var (
 	DataMaxSize     = 1024
 	DataMaxSizeUint = uint32(DataMaxSize)
-	totalFrameSize  = DataMaxSize + dataLenSize
+	TotalFrameSize  = DataMaxSize + dataLenSize
 )
+
+func SetDataMaxSize(size int) {
+	DataMaxSize = size
+	DataMaxSizeUint = uint32(size)
+	TotalFrameSize = size + dataLenSize
+}
 
 // 4 + 1024 == 1028 total frame size
 const (
@@ -189,7 +195,7 @@ func (sc *SecretConnection) RemotePubKey() crypto.PubKey {
 	return sc.remPubKey
 }
 
-// Writes encrypted frames of `totalFrameSize + aeadSizeOverhead`.
+// Writes encrypted frames of `TotalFrameSize + aeadSizeOverhead`.
 // CONTRACT: data smaller than DataMaxSize is written atomically.
 func (sc *SecretConnection) Write(data []byte) (n int, err error) {
 	sc.sendMtx.Lock()
@@ -197,8 +203,8 @@ func (sc *SecretConnection) Write(data []byte) (n int, err error) {
 
 	for 0 < len(data) {
 		if err := func() error {
-			var sealedFrame = pool.Get(aeadSizeOverhead + totalFrameSize)
-			var frame = pool.Get(totalFrameSize)
+			var sealedFrame = pool.Get(aeadSizeOverhead + TotalFrameSize)
+			var frame = pool.Get(TotalFrameSize)
 			defer func() {
 				pool.Put(sealedFrame)
 				pool.Put(frame)
@@ -246,7 +252,7 @@ func (sc *SecretConnection) Read(data []byte) (n int, err error) {
 	}
 
 	// read off the conn
-	var sealedFrame = pool.Get(aeadSizeOverhead + totalFrameSize)
+	var sealedFrame = pool.Get(aeadSizeOverhead + TotalFrameSize)
 	defer pool.Put(sealedFrame)
 	_, err = io.ReadFull(sc.conn, sealedFrame)
 	if err != nil {
@@ -255,7 +261,7 @@ func (sc *SecretConnection) Read(data []byte) (n int, err error) {
 
 	// decrypt the frame.
 	// reads and updates the sc.recvNonce
-	var frame = pool.Get(totalFrameSize)
+	var frame = pool.Get(TotalFrameSize)
 	defer pool.Put(frame)
 	_, err = sc.recvAead.Open(frame[:0], sc.recvNonce[:], sealedFrame, nil)
 	if err != nil {

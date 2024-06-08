@@ -1,10 +1,12 @@
 package p2p
 
 import (
+	"fmt"
+	"reflect"
+
+	"github.com/gogo/protobuf/proto"
 	"github.com/tendermint/tendermint/libs/service"
 	"github.com/tendermint/tendermint/p2p/conn"
-	"github.com/tendermint/tendermint/pkg/trace"
-	"github.com/tendermint/tendermint/pkg/trace/schema"
 )
 
 // Reactor is responsible for handling incoming messages on one or more
@@ -63,7 +65,7 @@ type EnvelopeReceiver interface {
 	// is implemented, it will be used, otherwise the switch will fallback to
 	// using Receive. Receive will be replaced by ReceiveEnvelope in a future version
 	ReceiveEnvelope(Envelope)
-	AsyncReceiveEnvelope(tracer trace.Tracer, e Envelope) int
+	AsyncReceiveEnvelope(p Peer, chID byte, chIDs map[byte]proto.Message, msgBytes []byte) int
 }
 
 //--------------------------------------
@@ -95,13 +97,28 @@ func NewBaseReactor(name string, impl Reactor, bufferSize int) *BaseReactor {
 	return r
 }
 
-func (r *BaseReactor) AsyncReceiveEnvelope(tracer trace.Tracer, e Envelope) int {
-	select {
-	case r.envelopes <- e:
-	default:
-		schema.WriteGenericTrace(tracer, -1, "full_q", e.ChannelID)
-		r.envelopes <- e
+func (r *BaseReactor) AsyncReceiveEnvelope(p Peer, chID byte, chIDs map[byte]proto.Message, msgBytes []byte) int {
+	mt := chIDs[chID]
+	msg := proto.Clone(mt)
+	err := proto.Unmarshal(msgBytes, msg)
+	if err != nil {
+		panic(fmt.Errorf("unmarshaling message: %s into type: %s", err, reflect.TypeOf(mt)))
 	}
+
+	if w, ok := msg.(Unwrapper); ok {
+		msg, err = w.Unwrap()
+		if err != nil {
+			panic(fmt.Errorf("unwrapping message: %s", err))
+		}
+	}
+
+	e := Envelope{
+		ChannelID: chID,
+		Src:       p,
+		Message:   msg,
+	}
+
+	r.envelopes <- e
 	return len(r.envelopes)
 }
 

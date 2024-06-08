@@ -543,19 +543,6 @@ func createMConnection(
 			// which does onPeerError.
 			panic(fmt.Sprintf("Unknown channel %X", chID))
 		}
-		mt := msgTypeByChID[chID]
-		msg := proto.Clone(mt)
-		err := proto.Unmarshal(msgBytes, msg)
-		if err != nil {
-			panic(fmt.Errorf("unmarshaling message: %s into type: %s", err, reflect.TypeOf(mt)))
-		}
-
-		if w, ok := msg.(Unwrapper); ok {
-			msg, err = w.Unwrap()
-			if err != nil {
-				panic(fmt.Errorf("unwrapping message: %s", err))
-			}
-		}
 
 		// labels := []string{
 		// 	"peer_id", string(p.ID()),
@@ -564,17 +551,32 @@ func createMConnection(
 
 		// p.metrics.PeerReceiveBytesTotal.With(labels...).Add(float64(len(msgBytes)))
 		// p.metrics.MessageReceiveBytesTotal.With(append(labels, "message_type", p.mlc.ValueToMetricLabel(msg))...).Add(float64(len(msgBytes)))
-		schema.WriteReceivedBytes(p.traceClient, string(p.ID()), chID, len(msgBytes))
-		// bufferSize := 0
+		// schema.WriteReceivedBytes(p.traceClient, string(p.ID()), chID, len(msgBytes))
+		bufferSize := 0
 		if nr, ok := reactor.(EnvelopeReceiver); ok {
-			e := Envelope{
-				ChannelID: chID,
-				Src:       p,
-				Message:   msg,
-			}
 			if UseBufferedReceives {
-				nr.AsyncReceiveEnvelope(p.traceClient, e)
+				bufferSize = nr.AsyncReceiveEnvelope(p, chID, msgTypeByChID, msgBytes)
 			} else {
+				mt := msgTypeByChID[chID]
+				msg := proto.Clone(mt)
+				err := proto.Unmarshal(msgBytes, msg)
+				if err != nil {
+					panic(fmt.Errorf("unmarshaling message: %s into type: %s", err, reflect.TypeOf(mt)))
+				}
+
+				if w, ok := msg.(Unwrapper); ok {
+					msg, err = w.Unwrap()
+					if err != nil {
+						panic(fmt.Errorf("unwrapping message: %s", err))
+					}
+				}
+
+				e := Envelope{
+					ChannelID: chID,
+					Src:       p,
+					Message:   msg,
+				}
+
 				nr.ReceiveEnvelope(e)
 			}
 		} else {
@@ -582,7 +584,7 @@ func createMConnection(
 			reactor.Receive(chID, p, msgBytes)
 		}
 		// end := time.Now()
-		// schema.WriteMessageProcessing(p.traceClient, chID, end.Sub(start), bufferSize)
+		schema.WriteMessageProcessing(p.traceClient, chID, bufferSize)
 	}
 
 	onError := func(reactor string, r interface{}) {
