@@ -155,3 +155,15 @@ func newMetricsLabelCache() *metricsLabelCache {
 		messageLabelNames: map[reflect.Type]string{},
 	}
 }
+
+func NoopMetrics() *Metrics {
+	return &Metrics{
+		Peers:                    discard.NewGauge(),
+		PeerReceiveBytesTotal:    discard.NewCounter(),
+		PeerSendBytesTotal:       discard.NewCounter(),
+		PeerPendingSendBytes:     discard.NewGauge(),
+		NumTxs:                   discard.NewGauge(),
+		MessageReceiveBytesTotal: discard.NewCounter(),
+		MessageSendBytesTotal:    discard.NewCounter(),
+	}
+}

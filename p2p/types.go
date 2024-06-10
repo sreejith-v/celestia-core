@@ -33,6 +33,11 @@ type Wrapper interface {
 	// Wrap will take the underlying message and wrap it in its wrapper type.
 	Wrap() proto.Message
 }
+type UnprocessedEnvelope struct {
+	Src       IntrospectivePeer
+	Message   []byte
+	ChannelID byte
+}
 
 var (
 	_ Wrapper = &tmp2p.PexRequest{}
