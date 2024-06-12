@@ -123,8 +123,12 @@ func (ip *imaginaryPeer) IsPersistent() bool               { return false }
 func (ip *imaginaryPeer) NodeInfo() NodeInfo               { return nil }
 func (ip *imaginaryPeer) Status() cmtconn.ConnectionStatus { return cmtconn.ConnectionStatus{} }
 func (ip *imaginaryPeer) SocketAddr() *NetAddress          { return nil }
-func (ip *imaginaryPeer) Send(byte, []byte) bool
-func (ip *imaginaryPeer) TrySend(byte, []byte) bool
+func (ip *imaginaryPeer) Send(byte, []byte) bool {
+	return true
+}
+func (ip *imaginaryPeer) TrySend(byte, []byte) bool {
+	return true
+}
 func (ip *imaginaryPeer) Set(key string, value any)          {}
 func (ip *imaginaryPeer) Get(key string) any                 { return nil }
 func (ip *imaginaryPeer) SetRemovalFailed()                  {}
