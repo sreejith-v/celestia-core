@@ -486,6 +486,10 @@ func (p *peer) ValueToMetricLabel(i any) string {
 	return p.mlc.ValueToMetricLabel(i)
 }
 
+func (p *metricsLabelCache) ChIDToMetricLabel(chID byte) string { return "" }
+
+// func (p *metricsLabelCache) ValueToMetricLabel(i any) string { return "" }
+
 // ---------------------------------------------------
 // methods only used for testing
 // TODO: can we remove these?
@@ -556,11 +560,17 @@ func createMConnection(
 			panic(fmt.Sprintf("Unknown channel %X", chID))
 		}
 
-		reactor.QueueUnprocessedEnvelope(UnprocessedEnvelope{
-			ChannelID: chID,
-			Src:       p,
-			Message:   msgBytes,
-		})
+		r, ok := reactor.(EnvelopeReactor)
+		if ok {
+			r.QueueUnprocessedEnvelope(UnprocessedEnvelope{
+				ChannelID: chID,
+				Src:       p,
+				Message:   msgBytes,
+			})
+		} else {
+			reactor.Receive(chID, p, msgBytes)
+		}
+
 	}
 
 	onError := func(r any) {

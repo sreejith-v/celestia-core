@@ -4,14 +4,6 @@ import (
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/tendermint/tendermint/p2p"
-)
-
-var (
-	_ p2p.Wrapper   = &Txs{}
-	_ p2p.Wrapper   = &SeenTx{}
-	_ p2p.Wrapper   = &WantTx{}
-	_ p2p.Unwrapper = &Message{}
 )
 
 // Wrap implements the p2p Wrapper interface and wraps a mempool message.
