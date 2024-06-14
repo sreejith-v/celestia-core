@@ -250,6 +250,11 @@ func (cs *State) GetRoundState() *cstypes.RoundState {
 	return &rs
 }
 
+func (cs *State) GetRoundStateNoLock() *cstypes.RoundState {
+	rs := cs.RoundState // copy
+	return &rs
+}
+
 // GetRoundStateJSON returns a json of RoundState.
 func (cs *State) GetRoundStateJSON() ([]byte, error) {
 	cs.mtx.RLock()
