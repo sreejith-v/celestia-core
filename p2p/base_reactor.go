@@ -149,9 +149,6 @@ type EnvelopeReactor interface {
 // This preservers the sender's original order for all messages. If a nil
 // EnvReceiver is provided, this will return nil.
 func DefaultProcessor(impl EnvelopeReactor) func(<-chan UnprocessedEnvelope) error {
-	if impl == nil {
-		return nil
-	}
 	return func(incoming <-chan UnprocessedEnvelope) error {
 		implChannels := impl.GetChannels()
 
