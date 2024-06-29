@@ -228,14 +228,14 @@ func (mt *MultiplexTransport) Dial(
 		return nil, err
 	}
 
-	secretConn, nodeInfo, err := mt.upgrade(c, &addr)
+	_, nodeInfo, err := mt.upgrade(c, &addr)
 	if err != nil {
 		return nil, err
 	}
 
 	cfg.outbound = true
 
-	p := mt.wrapPeer(secretConn, nodeInfo, cfg, &addr)
+	p := mt.wrapPeer(c, nodeInfo, cfg, &addr)
 
 	return p, nil
 }
@@ -325,23 +325,23 @@ func (mt *MultiplexTransport) acceptPeers() {
 			}()
 
 			var (
-				nodeInfo   NodeInfo
-				secretConn *conn.SecretConnection
-				netAddr    *NetAddress
+				nodeInfo NodeInfo
+				// _        *conn.SecretConnection
+				netAddr *NetAddress
 			)
 
 			err := mt.filterConn(c)
 			if err == nil {
-				secretConn, nodeInfo, err = mt.upgrade(c, nil)
+				_, nodeInfo, err = mt.upgrade(c, nil)
 				if err == nil {
 					addr := c.RemoteAddr()
-					id := PubKeyToID(secretConn.RemotePubKey())
-					netAddr = NewNetAddress(id, addr)
+					// id := PubKeyToID(secretConn.RemotePubKey())
+					netAddr = NewNetAddress(nodeInfo.ID(), addr)
 				}
 			}
 
 			select {
-			case mt.acceptc <- accept{netAddr, secretConn, nodeInfo, err}:
+			case mt.acceptc <- accept{netAddr, c, nodeInfo, err}:
 				// Make the upgraded peer available.
 			case <-mt.closec:
 				// Give up if the transport was closed.
@@ -410,41 +410,41 @@ func (mt *MultiplexTransport) filterConn(c net.Conn) (err error) {
 
 func (mt *MultiplexTransport) upgrade(
 	c net.Conn,
-	dialedAddr *NetAddress,
-) (secretConn *conn.SecretConnection, nodeInfo NodeInfo, err error) {
+	_ *NetAddress,
+) (sc *conn.SecretConnection, nodeInfo NodeInfo, err error) {
 	defer func() {
 		if err != nil {
 			_ = mt.cleanup(c)
 		}
 	}()
 
-	secretConn, err = upgradeSecretConn(c, mt.handshakeTimeout, mt.nodeKey.PrivKey)
-	if err != nil {
-		return nil, nil, ErrRejected{
-			conn:          c,
-			err:           fmt.Errorf("secret conn failed: %v", err),
-			isAuthFailure: true,
-		}
-	}
+	// secretConn, err = upgradeSecretConn(c, mt.handshakeTimeout, mt.nodeKey.PrivKey)
+	// if err != nil {
+	// 	return nil, nil, ErrRejected{
+	// 		conn:          c,
+	// 		err:           fmt.Errorf("secret conn failed: %v", err),
+	// 		isAuthFailure: true,
+	// 	}
+	// }
 
-	// For outgoing conns, ensure connection key matches dialed key.
-	connID := PubKeyToID(secretConn.RemotePubKey())
-	if dialedAddr != nil {
-		if dialedID := dialedAddr.ID; connID != dialedID {
-			return nil, nil, ErrRejected{
-				conn: c,
-				id:   connID,
-				err: fmt.Errorf(
-					"conn.ID (%v) dialed ID (%v) mismatch",
-					connID,
-					dialedID,
-				),
-				isAuthFailure: true,
-			}
-		}
-	}
+	// // For outgoing conns, ensure connection key matches dialed key.
+	// connID := PubKeyToID(secretConn.RemotePubKey())
+	// if dialedAddr != nil {
+	// 	if dialedID := dialedAddr.ID; connID != dialedID {
+	// 		return nil, nil, ErrRejected{
+	// 			conn: c,
+	// 			id:   connID,
+	// 			err: fmt.Errorf(
+	// 				"conn.ID (%v) dialed ID (%v) mismatch",
+	// 				connID,
+	// 				dialedID,
+	// 			),
+	// 			isAuthFailure: true,
+	// 		}
+	// 	}
+	// }
 
-	nodeInfo, err = handshake(secretConn, mt.handshakeTimeout, mt.nodeInfo)
+	nodeInfo, err = handshake(c, mt.handshakeTimeout, mt.nodeInfo)
 	if err != nil {
 		return nil, nil, ErrRejected{
 			conn:          c,
@@ -461,19 +461,19 @@ func (mt *MultiplexTransport) upgrade(
 		}
 	}
 
-	// Ensure connection key matches self reported key.
-	if connID != nodeInfo.ID() {
-		return nil, nil, ErrRejected{
-			conn: c,
-			id:   connID,
-			err: fmt.Errorf(
-				"conn.ID (%v) NodeInfo.ID (%v) mismatch",
-				connID,
-				nodeInfo.ID(),
-			),
-			isAuthFailure: true,
-		}
-	}
+	// // Ensure connection key matches self reported key.
+	// if connID != nodeInfo.ID() {
+	// 	return nil, nil, ErrRejected{
+	// 		conn: c,
+	// 		id:   connID,
+	// 		err: fmt.Errorf(
+	// 			"conn.ID (%v) NodeInfo.ID (%v) mismatch",
+	// 			connID,
+	// 			nodeInfo.ID(),
+	// 		),
+	// 		isAuthFailure: true,
+	// 	}
+	// }
 
 	// Reject self.
 	if mt.nodeInfo.ID() == nodeInfo.ID() {
@@ -494,7 +494,7 @@ func (mt *MultiplexTransport) upgrade(
 		}
 	}
 
-	return secretConn, nodeInfo, nil
+	return nil, nodeInfo, nil
 }
 
 func (mt *MultiplexTransport) wrapPeer(
