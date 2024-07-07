@@ -47,10 +47,7 @@ type Reactor struct {
 	mtx      cmtsync.RWMutex
 	waitSync bool
 	eventBus *types.EventBus
-
-	rsMtx         cmtsync.RWMutex
-	rs            *cstypes.RoundState
-	initialHeight int64
+	rs       *cstypes.RoundState
 
 	Metrics     *Metrics
 	traceClient trace.Tracer
@@ -317,7 +314,10 @@ func (conR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 				msg.Type.String(),
 			)
 		case *VoteSetMaj23Message:
-			height, votes := conR.getHeightVoteSet()
+			cs := conR.conS
+			cs.mtx.Lock()
+			height, votes := cs.Height, cs.Votes
+			cs.mtx.Unlock()
 			schema.WriteConsensusState(
 				conR.traceClient,
 				msg.Height,
@@ -415,10 +415,11 @@ func (conR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		}
 		switch msg := msg.(type) {
 		case *VoteMessage:
-			conR.rsMtx.RLock()
-			height, round, valSize, lastCommitSize := conR.rs.Height, conR.rs.Round,
-				conR.rs.Validators.Size(), conR.rs.LastCommit.Size()
-			conR.rsMtx.RUnlock()
+			cs := conR.conS
+			cs.mtx.RLock()
+			height, round, valSize, lastCommitSize := cs.Height, cs.Round,
+				cs.Validators.Size(), cs.LastCommit.Size()
+			cs.mtx.RUnlock()
 
 			schema.WriteVote(conR.traceClient, height, round, msg.Vote, string(e.Src.ID()), schema.Download)
 
@@ -426,7 +427,7 @@ func (conR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			ps.EnsureVoteBitArrays(height-1, lastCommitSize)
 			ps.SetHasVote(msg.Vote)
 
-			conR.conS.peerMsgQueue <- msgInfo{msg, e.Src.ID()}
+			cs.peerMsgQueue <- msgInfo{msg, e.Src.ID()}
 
 		default:
 			// don't punish (leave room for soft upgrades)
@@ -440,7 +441,10 @@ func (conR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		}
 		switch msg := msg.(type) {
 		case *VoteSetBitsMessage:
-			height, votes := conR.getHeightVoteSet()
+			cs := conR.conS
+			cs.mtx.Lock()
+			height, votes := cs.Height, cs.Votes
+			cs.mtx.Unlock()
 
 			if height == msg.Height {
 				var ourVotes *bits.BitArray
@@ -506,7 +510,6 @@ func (conR *Reactor) subscribeToBroadcastEvents() {
 	if err := conR.conS.evsw.AddListenerForEvent(subscriber, types.EventNewRoundStep,
 		func(data cmtevents.EventData) {
 			conR.broadcastNewRoundStepMessage(data.(*cstypes.RoundState))
-			conR.updateRoundStateNoCsLock()
 		}); err != nil {
 		conR.Logger.Error("Error adding listener for events", "err", err)
 	}
@@ -514,7 +517,6 @@ func (conR *Reactor) subscribeToBroadcastEvents() {
 	if err := conR.conS.evsw.AddListenerForEvent(subscriber, types.EventValidBlock,
 		func(data cmtevents.EventData) {
 			conR.broadcastNewValidBlockMessage(data.(*cstypes.RoundState))
-			conR.updateRoundStateNoCsLock()
 		}); err != nil {
 		conR.Logger.Error("Error adding listener for events", "err", err)
 	}
@@ -522,7 +524,6 @@ func (conR *Reactor) subscribeToBroadcastEvents() {
 	if err := conR.conS.evsw.AddListenerForEvent(subscriber, types.EventVote,
 		func(data cmtevents.EventData) {
 			conR.broadcastHasVoteMessage(data.(*types.Vote))
-			conR.updateRoundStateNoCsLock()
 		}); err != nil {
 		conR.Logger.Error("Error adding listener for events", "err", err)
 	}
@@ -663,23 +664,9 @@ func (conR *Reactor) updateRoundStateRoutine() {
 	}
 }
 
-func (conR *Reactor) getHeightVoteSet() (int64, *cstypes.HeightVoteSet) {
-	conR.rsMtx.RLock()
-	defer conR.rsMtx.RUnlock()
-	return conR.rs.Height, conR.rs.Votes
-}
-
-func (conR *Reactor) updateRoundStateNoCsLock() {
-	rs := conR.conS.GetRoundStateNoLock()
-	conR.rsMtx.Lock()
-	conR.rs = rs
-	conR.initialHeight = conR.conS.state.InitialHeight
-	conR.rsMtx.Unlock()
-}
-
 func (conR *Reactor) getRoundState() *cstypes.RoundState {
-	conR.rsMtx.RLock()
-	defer conR.rsMtx.RUnlock()
+	conR.mtx.RLock()
+	defer conR.mtx.RUnlock()
 	return conR.rs
 }
 
