@@ -576,7 +576,9 @@ func TestTransportHandshake(t *testing.T) {
 	)
 
 	go func() {
-		c, err := net.Dial(ln.Addr().Network(), ln.Addr().String())
+		var d net.Dialer
+		d.SetMultipathTCP(true)
+		c, err := d.Dial(ln.Addr().Network(), ln.Addr().String())
 		if err != nil {
 			t.Error(err)
 			return
