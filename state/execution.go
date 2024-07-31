@@ -122,6 +122,13 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 		timestamp = MedianTime(commit, state.LastValidators)
 	}
 
+	txsBytes := 0
+	for _, tx := range txs {
+		txsBytes += len(tx)
+	}
+
+	blockExec.logger.Info("* * * * * Preparing Proposal * * * * * *", "txs", len(txs), "bytes", txsBytes)
+
 	preparedProposal, err := blockExec.proxyApp.PrepareProposalSync(
 		abci.RequestPrepareProposal{
 			BlockData:     &cmtproto.Data{Txs: txs.ToSliceOfBytes()},
@@ -142,6 +149,14 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 		// purpose for now.
 		panic(err)
 	}
+
+	proposalBytes := 0
+	for _, v := range preparedProposal.BlockData.Txs {
+		proposalBytes += len(v)
+	}
+
+	blockExec.logger.Info("* * * * * * * * Prepared Proposal * * * * * * * * *", "txs", len(preparedProposal.BlockData.Txs), "bytes", proposalBytes)
+
 	rawNewData := preparedProposal.GetBlockData()
 	var blockDataSize int
 	for _, tx := range rawNewData.GetTxs() {
