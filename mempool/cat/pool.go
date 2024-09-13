@@ -424,6 +424,11 @@ func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 
 	var keep []types.Tx //nolint:prealloc
 	for _, w := range txmp.allEntriesSorted() {
+		n := time.Now()
+		n = n.Add(-time.Minute)
+		if w.timestamp.Compare(n) == -1 {
+			continue
+		}
 		// N.B. When computing byte size, we need to include the overhead for
 		// encoding as protobuf to send to the application. This actually overestimates it
 		// as we add the proto overhead to each transaction
