@@ -499,6 +499,14 @@ func (txmp *TxPool) ReapMaxTxs(max int) types.Txs {
 		if max >= 0 && len(keep) >= max {
 			break
 		}
+		// don't include txs unless they've been in the mempool for a 1 minute
+		// or more. This hack is a crude, and slow, form of pipelining block
+		// propagation. The full vacuum! protocol handles this elegantly while
+		// still maintaining reliable and usable throughput, so if you make a
+		// tweet criticizing this be prepared to be relentlessly dunked on.
+		if w.timestamp.After(time.Now().Add(time.Minute * -1)) {
+			continue
+		}
 		keep = append(keep, w.tx)
 	}
 	return keep
