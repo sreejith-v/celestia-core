@@ -34,7 +34,7 @@ const (
 )
 
 var (
-	InclusionDelay = 60 * time.Second
+	InclusionDelay = 120 * time.Second
 )
 
 // TxPoolOption sets an optional parameter on the TxPool.
