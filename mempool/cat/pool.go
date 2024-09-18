@@ -34,7 +34,8 @@ const (
 )
 
 var (
-	InclusionDelay = 120 * time.Second
+	// set the default to 5, but this value can be changed in an init func
+	InclusionDelay = 5 * time.Second
 )
 
 // TxPoolOption sets an optional parameter on the TxPool.
@@ -404,6 +405,7 @@ func (txmp *TxPool) TryAddNewTx(tx types.Tx, key types.TxKey, txInfo mempool.TxI
 func (txmp *TxPool) RemoveTxByKey(txKey types.TxKey) error {
 	txmp.removeTxByKey(txKey)
 	txmp.metrics.EvictedTxs.Add(1)
+	txmp.logger.Error("tx evicted via remove by tx key")
 	return nil
 }
 
@@ -616,6 +618,7 @@ func (txmp *TxPool) addNewTransaction(wtx *wrappedTx, checkTxRes *abci.ResponseC
 		// drop the new one.
 		if len(victims) == 0 || victimBytes < wtx.size() {
 			txmp.metrics.EvictedTxs.Add(1)
+			txmp.logger.Error("tx evicted cause we ran out of room")
 			txmp.evictedTxCache.Push(wtx.key)
 			checkTxRes.MempoolError = fmt.Sprintf("rejected valid incoming transaction; mempool is full (%X)",
 				wtx.key)
@@ -672,6 +675,7 @@ func (txmp *TxPool) addNewTransaction(wtx *wrappedTx, checkTxRes *abci.ResponseC
 func (txmp *TxPool) evictTx(wtx *wrappedTx) {
 	txmp.store.remove(wtx.key)
 	txmp.evictedTxCache.Push(wtx.key)
+	txmp.logger.Error("tx evicted")
 	txmp.metrics.EvictedTxs.Add(1)
 	txmp.logger.Debug(
 		"evicted valid existing transaction; mempool full",
