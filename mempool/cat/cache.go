@@ -2,9 +2,9 @@ package cat
 
 import (
 	"container/list"
+	"sync"
 	"time"
 
-	tmsync "github.com/tendermint/tendermint/libs/sync"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -15,7 +15,7 @@ import (
 type LRUTxCache struct {
 	staticSize int
 
-	mtx tmsync.Mutex
+	mtx sync.RWMutex
 	// cacheMap is used as a quick look up table
 	cacheMap map[types.TxKey]*list.Element
 	// list is a doubly linked list used to capture the FIFO nature of the cache
@@ -98,7 +98,7 @@ func (c *LRUTxCache) Has(txKey types.TxKey) bool {
 // SeenTxSet records transactions that have been
 // seen by other peers but not yet by us
 type SeenTxSet struct {
-	mtx tmsync.Mutex
+	mtx sync.RWMutex
 	set map[types.TxKey]timestampedPeerSet
 }
 
@@ -182,8 +182,8 @@ func (s *SeenTxSet) Has(txKey types.TxKey, peer uint16) bool {
 }
 
 func (s *SeenTxSet) Get(txKey types.TxKey) map[uint16]struct{} {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	seenSet, exists := s.set[txKey]
 	if !exists {
 		return nil
@@ -194,6 +194,18 @@ func (s *SeenTxSet) Get(txKey types.TxKey) map[uint16]struct{} {
 		peers[peer] = struct{}{}
 	}
 	return peers
+}
+
+func (s *SeenTxSet) GetSeenCount(txKey types.TxKey) int {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+
+	seenSet, exists := s.set[txKey]
+	if !exists {
+		return 0
+	}
+
+	return len(seenSet.peers)
 }
 
 // Len returns the amount of cached items. Mostly used for testing.

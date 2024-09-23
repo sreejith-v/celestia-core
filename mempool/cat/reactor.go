@@ -198,6 +198,7 @@ func (memR *Reactor) AddPeer(peer p2p.Peer) {
 	for _, key := range keys {
 		memR.broadcastSeenTx(key)
 	}
+	peerCount.Add(1)
 }
 
 // RemovePeer implements Reactor. For all current outbound requests to this
@@ -212,6 +213,11 @@ func (memR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	outboundRequests := memR.requests.ClearAllRequestsFrom(peerID)
 	for key := range outboundRequests {
 		memR.findNewPeerToRequestTx(key)
+	}
+	n := peerCount.Add(-1)
+	if n < 0 {
+		memR.Logger.Error("seen req went below one, resetting")
+		peerCount.Store(0)
 	}
 }
 
@@ -350,13 +356,13 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		// before we receive a WantTx message from them. In this case we might
 		// ignore the request if we know it's no longer valid.
 		if has && !memR.opts.ListenOnly {
-			peerID := memR.ids.GetIDForPeer(e.Src.ID())
-			memR.Logger.Debug("sending a transaction in response to a want msg", "peer", peerID, "txKey", txKey)
+			// peerID := memR.ids.GetIDForPeer(e.Src.ID())
+			// memR.Logger.Debug("sending a transaction in response to a want msg", "peer", peerID, "txKey", txKey)
 			if p2p.SendEnvelopeShim(e.Src, p2p.Envelope{ //nolint:staticcheck
 				ChannelID: mempool.MempoolChannel,
 				Message:   &protomem.Txs{Txs: [][]byte{tx}},
 			}, memR.Logger) {
-				memR.mempool.PeerHasTx(peerID, txKey)
+				// memR.mempool.PeerHasTx(peerID, txKey)
 				schema.WriteMempoolTx(
 					memR.traceClient,
 					string(e.Src.ID()),
@@ -394,28 +400,28 @@ func (memR *Reactor) broadcastSeenTx(txKey types.TxKey) {
 		panic(err)
 	}
 
-	for id, peer := range memR.ids.GetAll() {
-		if p, ok := peer.Get(types.PeerStateKey).(PeerState); ok {
-			// make sure peer isn't too far behind. This can happen
-			// if the peer is blocksyncing still and catching up
-			// in which case we just skip sending the transaction
-			if p.GetHeight() < memR.mempool.Height()-peerHeightDiff {
-				memR.Logger.Debug("peer is too far behind us. Skipping broadcast of seen tx", "peerID", peer.ID(),
-					"peerHeight", p.GetHeight(), "ourHeight", memR.mempool.Height())
-				continue
-			}
-		}
+	for _, peer := range memR.ids.GetAll() {
+		// if p, ok := peer.Get(types.PeerStateKey).(PeerState); ok {
+		// 	// make sure peer isn't too far behind. This can happen
+		// 	// if the peer is blocksyncing still and catching up
+		// 	// in which case we just skip sending the transaction
+		// 	if p.GetHeight() < memR.mempool.Height()-peerHeightDiff {
+		// 		memR.Logger.Debug("peer is too far behind us. Skipping broadcast of seen tx", "peerID", peer.ID(),
+		// 			"peerHeight", p.GetHeight(), "ourHeight", memR.mempool.Height())
+		// 		continue
+		// 	}
+		// }
 		// no need to send a seen tx message to a peer that already
 		// has that tx.
-		if memR.mempool.seenByPeersSet.Has(txKey, id) {
-			continue
-		}
+		// if memR.mempool.seenByPeersSet.Has(txKey, id) {
+		// 	continue
+		// }
 
 		if !peer.Send(MempoolStateChannel, bz) {
 			memR.Logger.Error("failed to send seen tx to peer", "peerID", peer.ID(), "txKey", txKey)
 		}
 	}
-	memR.Logger.Debug("broadcasted seen tx to all peers", "tx_key", txKey.String())
+	// memR.Logger.Debug("broadcasted seen tx to all peers", "tx_key", txKey.String())
 }
 
 // broadcastNewTx broadcast new transaction to all peers unless we are already sure they have seen the tx.
@@ -448,7 +454,7 @@ func (memR *Reactor) broadcastNewTx(wtx *wrappedTx) {
 		}
 
 		if peer.Send(mempool.MempoolChannel, bz) { //nolint:staticcheck
-			memR.mempool.PeerHasTx(id, wtx.key)
+			// memR.mempool.PeerHasTx(id, wtx.key)
 		} else {
 			memR.Logger.Error("failed to send new tx to peer", "peerID", peer.ID(), "txKey", wtx.key)
 		}

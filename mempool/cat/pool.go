@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -36,6 +37,7 @@ const (
 var (
 	// set the default to 5, but this value can be changed in an init func
 	InclusionDelay = 5 * time.Second
+	peerCount      = atomic.Int32{}
 )
 
 // TxPoolOption sets an optional parameter on the TxPool.
@@ -432,7 +434,7 @@ func (txmp *TxPool) Flush() {
 
 // PeerHasTx marks that the transaction has been seen by a peer.
 func (txmp *TxPool) PeerHasTx(peer uint16, txKey types.TxKey) {
-	txmp.logger.Debug("peer has tx", "peer", peer, "txKey", fmt.Sprintf("%X", txKey))
+	// txmp.logger.Debug("peer has tx", "peer", peer, "txKey", fmt.Sprintf("%X", txKey))
 	txmp.seenByPeersSet.Add(txKey, peer)
 }
 
@@ -462,13 +464,18 @@ func (txmp *TxPool) allEntriesSorted() []*wrappedTx {
 // constraints, the result will also be empty.
 func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 	var totalGas, totalBytes int64
-	currentTime := time.Now()
+	// currentTime := time.Now()
 
 	var keep []types.Tx //nolint:prealloc
 	for _, w := range txmp.allEntriesSorted() {
 		// skip transactions that have been in the mempool for less than the inclusion delay
 		// This gives time for the transaction to be broadcast to all peers
-		if currentTime.Sub(w.timestamp) < InclusionDelay {
+		// if currentTime.Sub(w.timestamp) < InclusionDelay {
+		// 	continue
+		// }
+
+		seenCount := txmp.seenByPeersSet.GetSeenCount(w.key)
+		if seenCount < (2 * (int(peerCount.Load()) / 3)) {
 			continue
 		}
 
