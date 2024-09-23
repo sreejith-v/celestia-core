@@ -381,7 +381,7 @@ func (txmp *TxPool) TryAddNewTx(tx types.Tx, key types.TxKey, txInfo mempool.TxI
 
 	// Create wrapped tx
 	wtx := newWrappedTx(
-		tx, key, txmp.Height(), rsp.GasWanted, rsp.Priority, rsp.Sender,
+		tx, key, txmp.Height(), rsp.GasWanted, rsp.Priority, rsp.Sender, txInfo.SenderID == 0,
 	)
 
 	// Perform the post check
@@ -485,6 +485,11 @@ func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 		// if currentTime.Sub(w.timestamp) < InclusionDelay {
 		// 	continue
 		// }
+
+		// skip our own txs to force them to be distributed before being included.
+		if w.selfTx {
+			continue
+		}
 
 		if w.seenCount < (2 * (int(peerCount.Load()) / 3)) {
 			continue

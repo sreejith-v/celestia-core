@@ -18,12 +18,14 @@ type wrappedTx struct {
 	gasWanted int64       // app: gas required to execute this transaction
 	priority  int64       // app: priority value for this transaction
 	sender    string      // app: assigned sender label
-	evictable bool        // whether this transaction can be evicted from the mempool. This is false when the transaction
-	// is a part of a proposed block
+	evictable bool        // whether this transaction can be evicted from the mempool. This is false when the transaction is a part of a proposed block nolint:lll
+
+	selfTx bool // keeps track of if this tx originated from this node. If so, then it will not be included in a block. This is a hack.
+	// temporary var only used for sorting when reaping
 	seenCount int
 }
 
-func newWrappedTx(tx types.Tx, key types.TxKey, height, gasWanted, priority int64, sender string) *wrappedTx {
+func newWrappedTx(tx types.Tx, key types.TxKey, height, gasWanted, priority int64, sender string, self bool) *wrappedTx {
 	return &wrappedTx{
 		tx:        tx,
 		key:       key,
@@ -33,6 +35,7 @@ func newWrappedTx(tx types.Tx, key types.TxKey, height, gasWanted, priority int6
 		priority:  priority,
 		sender:    sender,
 		evictable: true,
+		selfTx:    self,
 	}
 }
 
