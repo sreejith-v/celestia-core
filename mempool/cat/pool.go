@@ -452,6 +452,18 @@ func (txmp *TxPool) allEntriesSorted() []*wrappedTx {
 	return txs
 }
 
+func (txmp *TxPool) allEntriesMostSeen() []*wrappedTx {
+	txs := txmp.allEntriesSorted()
+	for i, tx := range txs {
+		seen := txmp.seenByPeersSet.GetSeenCount(tx.key)
+		txs[i].seenCount = seen
+	}
+	sort.SliceStable(txs, func(i, j int) bool {
+		return txs[i].seenCount > txs[j].seenCount
+	})
+	return txs
+}
+
 // ReapMaxBytesMaxGas returns a slice of valid transactions that fit within the
 // size and gas constraints. The results are ordered by nonincreasing priority,
 // with ties broken by increasing order of arrival. Reaping transactions does
@@ -467,15 +479,14 @@ func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 	// currentTime := time.Now()
 
 	var keep []types.Tx //nolint:prealloc
-	for _, w := range txmp.allEntriesSorted() {
+	for _, w := range txmp.allEntriesMostSeen() {
 		// skip transactions that have been in the mempool for less than the inclusion delay
 		// This gives time for the transaction to be broadcast to all peers
 		// if currentTime.Sub(w.timestamp) < InclusionDelay {
 		// 	continue
 		// }
 
-		seenCount := txmp.seenByPeersSet.GetSeenCount(w.key)
-		if seenCount < (2 * (int(peerCount.Load()) / 3)) {
+		if w.seenCount < (2 * (int(peerCount.Load()) / 3)) {
 			continue
 		}
 

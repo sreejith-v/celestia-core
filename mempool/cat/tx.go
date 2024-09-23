@@ -20,6 +20,7 @@ type wrappedTx struct {
 	sender    string      // app: assigned sender label
 	evictable bool        // whether this transaction can be evicted from the mempool. This is false when the transaction
 	// is a part of a proposed block
+	seenCount int
 }
 
 func newWrappedTx(tx types.Tx, key types.TxKey, height, gasWanted, priority int64, sender string) *wrappedTx {
