@@ -3,8 +3,10 @@ package cat
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -36,8 +38,9 @@ const (
 
 var (
 	// set the default to 5, but this value can be changed in an init func
-	InclusionDelay = 5 * time.Second
-	peerCount      = atomic.Int32{}
+	InclusionDelay   = 5 * time.Second
+	peerCount        = atomic.Int32{}
+	defaultSeenLimit = 40
 )
 
 // TxPoolOption sets an optional parameter on the TxPool.
@@ -471,6 +474,8 @@ func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 
 	var keep []types.Tx //nolint:prealloc
 
+	seenLimit := getSeenLimit()
+
 	for _, w := range txmp.allEntriesMostSeen() {
 		// skip transactions that have been in the mempool for less than the inclusion delay
 		// This gives time for the transaction to be broadcast to all peers
@@ -478,8 +483,8 @@ func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 		// 	continue
 		// }
 
-		if w.seenCount < 25 {
-			txmp.logger.Error("too few seen to add to block!!", "peerCount", peerCount.Load(), "seen count", w.seenCount)
+		if w.seenCount < seenLimit {
+			txmp.logger.Error("too few seen to add to block!!", "seen limit", seenLimit, "seen count", w.seenCount)
 			continue
 		} else {
 			txmp.logger.Info("including tx in block", "seen", w.seenCount)
@@ -525,6 +530,18 @@ func (txmp *TxPool) ReapMaxTxs(max int) types.Txs {
 		keep = append(keep, w.tx)
 	}
 	return keep
+}
+
+func getSeenLimit() int {
+	evar := os.Getenv("SEEN_LIMIT")
+	if evar == "" {
+		return defaultSeenLimit
+	}
+	parsed, err := strconv.ParseInt(evar, 10, 64)
+	if err != nil {
+		return defaultSeenLimit
+	}
+	return int(parsed)
 }
 
 // Update removes all the given transactions from the mempool and the cache,
