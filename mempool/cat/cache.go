@@ -171,8 +171,8 @@ func (s *SeenTxSet) Prune(limit time.Time) {
 }
 
 func (s *SeenTxSet) Has(txKey types.TxKey, peer uint16) bool {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	seenSet, exists := s.set[txKey]
 	if !exists {
 		return false

@@ -82,7 +82,7 @@ func (memR *Reactor) FetchTxsFromKeys(ctx context.Context, blockID []byte, compa
 	for _, key := range missingKeys {
 		numHaveTx := len(memR.mempool.seenByPeersSet.Get(key))
 		memR.Logger.Info("searching for missing tx", "numHaveTx", numHaveTx)
-		memR.findNewPeerToRequestTx(key)
+		memR.findNewPeerToRequestTx(key, 5)
 	}
 
 	// Wait for the reactor to retrieve and post all transactions.

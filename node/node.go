@@ -378,6 +378,7 @@ func createMempoolAndMempoolReactor(
 	memplMetrics *mempl.Metrics,
 	logger log.Logger,
 	traceClient trace.Tracer,
+	self p2p.ID,
 ) (mempl.Mempool, *cat.Reactor) {
 	mp := cat.NewTxPool(
 		logger,
@@ -396,6 +397,7 @@ func createMempoolAndMempoolReactor(
 			MaxTxSize:      config.Mempool.MaxTxBytes,
 			TraceClient:    traceClient,
 			MaxGossipDelay: config.Mempool.MaxGossipDelay,
+			Self:           self,
 		},
 	)
 	if err != nil {
@@ -820,7 +822,7 @@ func NewNode(config *cfg.Config,
 	}
 
 	// Make MempoolReactor
-	mempool, mempoolReactor := createMempoolAndMempoolReactor(config, proxyApp, state, memplMetrics, logger, tracer)
+	mempool, mempoolReactor := createMempoolAndMempoolReactor(config, proxyApp, state, memplMetrics, logger, tracer, nodeKey.ID())
 
 	// Make Evidence Reactor
 	evidenceReactor, evidencePool, err := createEvidenceReactor(config, dbProvider, stateDB, blockStore, logger)

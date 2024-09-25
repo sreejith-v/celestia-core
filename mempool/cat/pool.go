@@ -216,16 +216,6 @@ func (txmp *TxPool) WasRecentlyEvicted(txKey types.TxKey) bool {
 	return txmp.evictedTxCache.Has(txKey)
 }
 
-// GetCommitted retrieves a committed transaction based on the key.
-// It returns the transaction and a bool indicating if the transaction exists or not.
-func (txmp *TxPool) GetCommitted(txKey types.TxKey) (types.Tx, bool) {
-	wtx := txmp.store.getCommitted(txKey)
-	if wtx != nil {
-		return wtx.tx, true
-	}
-	return types.Tx{}, false
-}
-
 // IsRejectedTx returns true if the transaction was recently rejected and is
 // currently within the cache
 func (txmp *TxPool) IsRejectedTx(txKey types.TxKey) bool {
@@ -479,17 +469,13 @@ func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 	// currentTime := time.Now()
 
 	var keep []types.Tx //nolint:prealloc
+
 	for _, w := range txmp.allEntriesMostSeen() {
 		// skip transactions that have been in the mempool for less than the inclusion delay
 		// This gives time for the transaction to be broadcast to all peers
 		// if currentTime.Sub(w.timestamp) < InclusionDelay {
 		// 	continue
 		// }
-
-		// skip our own txs to force them to be distributed before being included.
-		if w.selfTx {
-			continue
-		}
 
 		if w.seenCount < (2 * (int(peerCount.Load()) / 3)) {
 			continue
@@ -520,11 +506,7 @@ func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 // does not have that many transactions available.
 func (txmp *TxPool) ReapMaxTxs(max int) types.Txs {
 	var keep []types.Tx //nolint:prealloc
-	currentTime := time.Now()
 	for _, w := range txmp.allEntriesSorted() {
-		if currentTime.Sub(w.timestamp) < InclusionDelay {
-			break
-		}
 		if max >= 0 && len(keep) >= max {
 			break
 		}

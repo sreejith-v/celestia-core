@@ -17,12 +17,14 @@ type mempoolIDs struct {
 	peerMap   map[p2p.ID]uint16   // quick lookup table for peer ID to short ID
 	nextID    uint16              // assumes that a node will never have over 65536 active peers
 	activeIDs map[uint16]p2p.Peer // used to check if a given peerID key is used, the value doesn't matter
+	knownIDs  map[uint16]p2p.ID
 }
 
 func newMempoolIDs() *mempoolIDs {
 	return &mempoolIDs{
 		peerMap:   make(map[p2p.ID]uint16),
 		activeIDs: make(map[uint16]p2p.Peer),
+		knownIDs:  make(map[uint16]p2p.ID),
 		nextID:    firstPeerID, // reserve unknownPeerID(0) for mempoolReactor.BroadcastTx
 	}
 }
@@ -40,19 +42,20 @@ func (ids *mempoolIDs) ReserveForPeer(peer p2p.Peer) {
 	curID := ids.nextPeerID()
 	ids.peerMap[peer.ID()] = curID
 	ids.activeIDs[curID] = peer
+	ids.knownIDs[curID] = peer.ID()
 }
 
 // nextPeerID returns the next unused peer ID to use.
 // This assumes that ids's mutex is already locked.
 func (ids *mempoolIDs) nextPeerID() uint16 {
-	if len(ids.activeIDs) == mempool.MaxActiveIDs {
+	if (len(ids.activeIDs) + len(ids.knownIDs)) == mempool.MaxActiveIDs {
 		panic(fmt.Sprintf("node has maximum %d active IDs and wanted to get one more", mempool.MaxActiveIDs))
 	}
 
-	_, idExists := ids.activeIDs[ids.nextID]
+	_, idExists := ids.knownIDs[ids.nextID]
 	for idExists {
 		ids.nextID++
-		_, idExists = ids.activeIDs[ids.nextID]
+		_, idExists = ids.knownIDs[ids.nextID]
 	}
 	curID := ids.nextID
 	ids.nextID++
@@ -80,7 +83,10 @@ func (ids *mempoolIDs) GetIDForPeer(peerID p2p.ID) uint16 {
 
 	id, exists := ids.peerMap[peerID]
 	if !exists {
-		return 0
+		id = ids.nextPeerID()
+		ids.peerMap[peerID] = id
+		ids.knownIDs[id] = peerID
+		peerCount.Add(1)
 	}
 	return id
 }

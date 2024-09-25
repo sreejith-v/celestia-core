@@ -29,21 +29,21 @@ func TestRequestSchedulerRerequest(t *testing.T) {
 
 	// create a request
 	closeCh := make(chan struct{})
-	require.True(t, requests.Add(key, peerA, func(key types.TxKey) {
+	require.True(t, requests.Add(key, peerA, func(key types.TxKey, tries int) {
 		require.Equal(t, key, key)
 		// the first peer times out to respond so we ask the second peer
-		require.True(t, requests.Add(key, peerB, func(key types.TxKey) {
+		require.True(t, requests.Add(key, peerB, func(key types.TxKey, tries int) {
 			t.Fatal("did not expect to timeout")
-		}))
+		}, 100))
 		close(closeCh)
-	}))
+	}, 100))
 
 	// check that the request was added
 	require.Equal(t, peerA, requests.ForTx(key))
 	require.True(t, requests.Has(peerA, key))
 
 	// should not be able to add the same request again
-	require.False(t, requests.Add(key, peerA, nil))
+	require.False(t, requests.Add(key, peerA, nil, 100))
 
 	// wait for the scheduler to invoke the timeout
 	<-closeCh
@@ -72,7 +72,7 @@ func TestRequestSchedulerNonResponsivePeer(t *testing.T) {
 		peerA    uint16 = 1 // should be non-zero
 	)
 
-	require.True(t, requests.Add(key, peerA, nil))
+	require.True(t, requests.Add(key, peerA, nil, 100))
 	require.Eventually(t, func() bool {
 		return requests.ForTx(key) == 0
 	}, 100*time.Millisecond, 5*time.Millisecond)
@@ -97,7 +97,7 @@ func TestRequestSchedulerConcurrencyAddsAndReads(t *testing.T) {
 		addWg.Add(1)
 		go func(peer uint16) {
 			defer addWg.Done()
-			requests.Add(keys[int(peer)%N], peer, nil)
+			requests.Add(keys[int(peer)%N], peer, nil, 100)
 		}(uint16(i))
 	}
 	for i := 1; i < N*N; i++ {
