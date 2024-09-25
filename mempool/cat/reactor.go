@@ -364,6 +364,8 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		if !success {
 			return
 		}
+		go memR.broadcastSeenTx(types.TxKey(msg.TxKey), msg.Peer)
+
 		// Check if we don't already have the transaction and that it was recently rejected
 		if memR.mempool.Has(txKey) || memR.mempool.IsRejectedTx(txKey) || memR.mempool.store.hasCommitted(txKey) {
 			// memR.Logger.Debug("received a seen tx for a tx we already have", "txKey", txKey)
@@ -379,7 +381,6 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		// We don't have the transaction, nor are we requesting it so we send the node
 		// a want msg
 		memR.requestTx(txKey, e.Src, 5)
-		memR.broadcastSeenTx(types.TxKey(msg.TxKey), msg.Peer)
 
 	// A peer is requesting a transaction that we have claimed to have. Find the specified
 	// transaction and broadcast it to the peer. We may no longer have the transaction
@@ -417,7 +418,9 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 				)
 			}
 		} else {
+			memR.ids.mtx.RLock()
 			peer, has := memR.ids.peerMap[e.Src.ID()]
+			memR.ids.mtx.RUnlock()
 			if has {
 				memR.wantState.Add(txKey, peer)
 			}
