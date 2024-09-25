@@ -481,6 +481,8 @@ func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 		if w.seenCount < 73 {
 			txmp.logger.Error("too few seen to add to block!!", "peerCount", peerCount.Load(), "seen count", w.seenCount)
 			continue
+		} else {
+			txmp.logger.Info("including tx in block", "seen", w.seenCount)
 		}
 
 		// N.B. When computing byte size, we need to include the overhead for
