@@ -379,7 +379,6 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		// We don't have the transaction, nor are we requesting it so we send the node
 		// a want msg
 		memR.requestTx(txKey, e.Src, 5)
-		memR.Logger.Info("broadcasting seentx from peer", "peer", msg.Peer)
 		memR.broadcastSeenTx(types.TxKey(msg.TxKey), msg.Peer)
 
 	// A peer is requesting a transaction that we have claimed to have. Find the specified
