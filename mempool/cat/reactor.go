@@ -177,14 +177,14 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 	return []*p2p.ChannelDescriptor{
 		{
 			ID:                  mempool.MempoolChannel,
-			Priority:            4,
+			Priority:            8,
 			SendQueueCapacity:   5000,
 			RecvMessageCapacity: txMsg.Size(),
 			MessageType:         &protomem.Message{},
 		},
 		{
 			ID:                  MempoolStateChannel,
-			Priority:            5,
+			Priority:            10,
 			SendQueueCapacity:   5000,
 			RecvMessageCapacity: stateMsg.Size(),
 			MessageType:         &protomem.Message{},
@@ -358,7 +358,11 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			schema.Download,
 		)
 		peerID := memR.ids.GetIDForPeer(p2p.ID(msg.Peer))
-		memR.mempool.PeerHasTx(peerID, txKey)
+		success := memR.mempool.PeerHasTx(peerID, txKey)
+		// return as this peer has already seen this tx
+		if !success {
+			return
+		}
 		// Check if we don't already have the transaction and that it was recently rejected
 		if memR.mempool.Has(txKey) || memR.mempool.IsRejectedTx(txKey) || memR.mempool.store.hasCommitted(txKey) {
 			// memR.Logger.Debug("received a seen tx for a tx we already have", "txKey", txKey)
@@ -434,7 +438,7 @@ type PeerState interface {
 // broadcastSeenTx broadcasts a SeenTx message to all peers unless we
 // know they have already seen the transaction
 func (memR *Reactor) broadcastSeenTx(txKey types.TxKey, from string) {
-	memR.Logger.Debug("broadcasting seen tx to all peers", "tx_key", txKey.String())
+	memR.Logger.Info("broadcasting seen tx to all peers", "tx_key", txKey.String(), "from", from)
 	msg := &protomem.Message{
 		Sum: &protomem.Message_SeenTx{
 			SeenTx: &protomem.SeenTx{

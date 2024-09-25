@@ -423,9 +423,9 @@ func (txmp *TxPool) Flush() {
 }
 
 // PeerHasTx marks that the transaction has been seen by a peer.
-func (txmp *TxPool) PeerHasTx(peer uint16, txKey types.TxKey) {
+func (txmp *TxPool) PeerHasTx(peer uint16, txKey types.TxKey) bool {
 	// txmp.logger.Debug("peer has tx", "peer", peer, "txKey", fmt.Sprintf("%X", txKey))
-	txmp.seenByPeersSet.Add(txKey, peer)
+	return txmp.seenByPeersSet.Add(txKey, peer)
 }
 
 // allEntriesSorted returns a slice of all the transactions currently in the

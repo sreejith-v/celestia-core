@@ -113,9 +113,9 @@ func NewSeenTxSet() *SeenTxSet {
 	}
 }
 
-func (s *SeenTxSet) Add(txKey types.TxKey, peer uint16) {
+func (s *SeenTxSet) Add(txKey types.TxKey, peer uint16) bool {
 	if peer == 0 {
-		return
+		return false
 	}
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
@@ -125,8 +125,14 @@ func (s *SeenTxSet) Add(txKey types.TxKey, peer uint16) {
 			peers: map[uint16]struct{}{peer: {}},
 			time:  time.Now().UTC(),
 		}
+		return true
 	} else {
+		_, seen := seenSet.peers[peer]
+		if seen {
+			return false
+		}
 		seenSet.peers[peer] = struct{}{}
+		return true
 	}
 }
 
