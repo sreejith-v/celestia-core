@@ -350,10 +350,11 @@ func (c *MConnection) stopForError(r interface{}) {
 // Queues a message to be sent to channel.
 func (c *MConnection) Send(chID byte, msgBytes []byte) bool {
 	if !c.IsRunning() {
+		c.Logger.Error("mconn is not running")
 		return false
 	}
 
-	c.Logger.Debug("Send", "channel", chID, "conn", c, "msgBytes", log.NewLazySprintf("%X", msgBytes))
+	// c.Logger.Debug("Send", "channel", chID, "conn", c, "msgBytes", log.NewLazySprintf("%X", msgBytes))
 
 	// Send message to channel.
 	channel, ok := c.channelsIdx[chID]
@@ -370,6 +371,7 @@ func (c *MConnection) Send(chID byte, msgBytes []byte) bool {
 		default:
 		}
 	} else {
+		c.Logger.Error("mconn is clogged")
 		c.Logger.Debug("Send failed", "channel", chID, "conn", c, "msgBytes", log.NewLazySprintf("%X", msgBytes))
 	}
 	return success

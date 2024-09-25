@@ -71,6 +71,7 @@ func (ids *mempoolIDs) Reclaim(peerID p2p.ID) uint16 {
 	if ok {
 		delete(ids.activeIDs, removedID)
 		delete(ids.peerMap, peerID)
+		peerCount.Add(-1)
 		return removedID
 	}
 	return 0
@@ -86,7 +87,7 @@ func (ids *mempoolIDs) GetIDForPeer(peerID p2p.ID) uint16 {
 		id = ids.nextPeerID()
 		ids.peerMap[peerID] = id
 		ids.knownIDs[id] = peerID
-		peerCount.Add(1)
+		fmt.Println("known IDs:", len(ids.knownIDs))
 	}
 	return id
 }

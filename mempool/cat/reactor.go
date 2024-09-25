@@ -217,7 +217,6 @@ func (memR *Reactor) AddPeer(peer p2p.Peer) {
 		}
 		peer.Send(MempoolStateChannel, bz)
 	}
-	peerCount.Add(1)
 }
 
 // RemovePeer implements Reactor. For all current outbound requests to this
@@ -438,7 +437,7 @@ type PeerState interface {
 // broadcastSeenTx broadcasts a SeenTx message to all peers unless we
 // know they have already seen the transaction
 func (memR *Reactor) broadcastSeenTx(txKey types.TxKey, from string) {
-	memR.Logger.Info("broadcasting seen tx to all peers", "tx_key", txKey.String(), "from", from)
+	memR.Logger.Debug("broadcasting seen tx to all peers", "tx_key", txKey.String(), "from", from)
 	msg := &protomem.Message{
 		Sum: &protomem.Message_SeenTx{
 			SeenTx: &protomem.SeenTx{

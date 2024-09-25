@@ -356,8 +356,10 @@ func (p *peer) SendEnvelope(e Envelope) bool {
 // SendEnvelope replaces Send which will be deprecated in a future release.
 func (p *peer) Send(chID byte, msgBytes []byte) bool {
 	if !p.IsRunning() {
+		p.Logger.Error("peer is not running")
 		return false
 	} else if !p.hasChannel(chID) {
+		p.Logger.Error("peer has no channel")
 		return false
 	}
 	res := p.mconn.Send(chID, msgBytes)
