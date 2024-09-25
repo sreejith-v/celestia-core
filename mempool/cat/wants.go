@@ -33,3 +33,21 @@ func (f *wantState) Add(tx types.TxKey, peer uint16) {
 	}
 	f.wants[tx][peer] = struct{}{}
 }
+
+func (f *wantState) Delete(tx types.TxKey, peer uint16) {
+	f.mtx.Lock()
+	defer f.mtx.Unlock()
+	ws, has := f.wants[tx]
+	if !has {
+		return
+	}
+	_, has = ws[peer]
+	if !has {
+		return
+	}
+	delete(ws, peer)
+	f.wants[tx] = ws
+	if len(f.wants[tx]) == 0 {
+		delete(f.wants, tx)
+	}
+}

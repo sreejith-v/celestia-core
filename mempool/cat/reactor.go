@@ -103,6 +103,7 @@ func NewReactor(mempool *TxPool, opts *ReactorOptions) (*Reactor, error) {
 		traceClient:  opts.TraceClient,
 		wantState:    NewWantState(),
 	}
+	memR.self = opts.Self
 	memR.BaseReactor = *p2p.NewBaseReactor("Mempool", memR)
 	return memR, nil
 }
@@ -321,6 +322,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 							ChannelID: mempool.MempoolChannel,
 							Message:   &protomem.Txs{Txs: [][]byte{tx}},
 						}, memR.Logger) {
+							memR.wantState.Delete(key, peer)
 							// memR.mempool.PeerHasTx(peerID, txKey)
 							schema.WriteMempoolTx(
 								memR.traceClient,
@@ -377,7 +379,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		// We don't have the transaction, nor are we requesting it so we send the node
 		// a want msg
 		memR.requestTx(txKey, e.Src, 5)
-
+		memR.Logger.Info("broadcasting seentx from peer", "peer", msg.Peer)
 		memR.broadcastSeenTx(types.TxKey(msg.TxKey), msg.Peer)
 
 	// A peer is requesting a transaction that we have claimed to have. Find the specified

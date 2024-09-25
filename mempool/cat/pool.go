@@ -338,7 +338,7 @@ func (txmp *TxPool) TryAddNewTx(tx types.Tx, key types.TxKey, txInfo mempool.TxI
 	// reserve the key
 	if !txmp.store.reserve(key) {
 		txmp.logger.Debug("mempool already attempting to verify and add transaction", "txKey", fmt.Sprintf("%X", key))
-		txmp.PeerHasTx(txInfo.SenderID, key)
+		// txmp.PeerHasTx(txInfo.SenderID, key)
 		return nil, ErrTxInMempool
 	}
 	defer txmp.store.release(key)
@@ -424,8 +424,9 @@ func (txmp *TxPool) Flush() {
 
 // PeerHasTx marks that the transaction has been seen by a peer.
 func (txmp *TxPool) PeerHasTx(peer uint16, txKey types.TxKey) bool {
-	// txmp.logger.Debug("peer has tx", "peer", peer, "txKey", fmt.Sprintf("%X", txKey))
-	return txmp.seenByPeersSet.Add(txKey, peer)
+	success := txmp.seenByPeersSet.Add(txKey, peer)
+	// txmp.logger.Info("peer has tx", "success", success, "peer", peer, "txKey", fmt.Sprintf("%X", txKey))
+	return success
 }
 
 // allEntriesSorted returns a slice of all the transactions currently in the
@@ -477,7 +478,7 @@ func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 		// 	continue
 		// }
 
-		if w.seenCount < (2 * (int(peerCount.Load()) / 3)) {
+		if w.seenCount < int(2*peerCount.Load()/3) {
 			txmp.logger.Error("too few seen to add to block!!", "peerCount", peerCount.Load(), "seen count", w.seenCount)
 			continue
 		}
