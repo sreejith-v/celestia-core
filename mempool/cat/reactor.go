@@ -178,15 +178,15 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 	return []*p2p.ChannelDescriptor{
 		{
 			ID:                  mempool.MempoolChannel,
-			Priority:            8,
+			Priority:            9,
 			SendQueueCapacity:   5000,
 			RecvMessageCapacity: txMsg.Size(),
 			MessageType:         &protomem.Message{},
 		},
 		{
 			ID:                  MempoolStateChannel,
-			Priority:            10,
-			SendQueueCapacity:   5000,
+			Priority:            20,
+			SendQueueCapacity:   33000,
 			RecvMessageCapacity: stateMsg.Size(),
 			MessageType:         &protomem.Message{},
 		},
