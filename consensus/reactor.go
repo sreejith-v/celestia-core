@@ -798,7 +798,7 @@ OUTER_LOOP:
 					schema.Upload,
 				)
 			}
-		case prs.Height < rs.Height-1: // catchup
+		case prs.Height < rs.Height-2: // catchup
 			blockStoreBase := conR.conS.blockStore.Base()
 			if blockStoreBase > 0 && prs.Height >= blockStoreBase {
 				heightLogger := logger.With("height", prs.Height)
