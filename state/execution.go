@@ -7,6 +7,7 @@ import (
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
+	"github.com/tendermint/tendermint/crypto/merkle"
 	"github.com/tendermint/tendermint/libs/fail"
 	"github.com/tendermint/tendermint/libs/log"
 	mempl "github.com/tendermint/tendermint/mempool"
@@ -154,6 +155,13 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 			panic("block data exceeds max amount of allowed bytes")
 		}
 	}
+
+	hashBytes := make([][]byte, len(hashes))
+	for i, h := range hashes {
+		hashBytes[i] = h[:]
+	}
+
+	rawNewData.Hash = merkle.HashFromByteSlices(hashBytes)
 
 	newData, err := types.DataFromProto(rawNewData)
 	if err != nil {
