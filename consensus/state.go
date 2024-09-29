@@ -1205,6 +1205,7 @@ func (cs *State) defaultDecideProposal(height int64, round int32) {
 	var block *types.Block
 	var blockParts *types.PartSet
 	var blockHash []byte
+	var hashes []types.TxKey
 
 	// Decide on block
 	if cs.TwoThirdPrevoteBlock != nil {
@@ -1219,7 +1220,7 @@ func (cs *State) defaultDecideProposal(height int64, round int32) {
 	} else {
 		// Create a new proposal block from state/txs from the mempool.
 		schema.WriteABCI(cs.traceClient, schema.PrepareProposalStart, height, round)
-		block = cs.createProposalBlock()
+		block, hashes = cs.createProposalBlock()
 		schema.WriteABCI(cs.traceClient, schema.PrepareProposalEnd, height, round)
 		if block == nil {
 			return
@@ -1228,12 +1229,11 @@ func (cs *State) defaultDecideProposal(height int64, round int32) {
 		blockHash = block.Hash()
 	}
 
-	keys, err := cs.txFetcher.FetchKeysFromTxs(context.Background(), block.Txs.ToSliceOfBytes())
-	if err != nil {
-		cs.Logger.Error("failed to fetch tx keys", "err", err)
-		return
+	keyTxs := make([]types.Tx, len(hashes))
+	for i, h := range hashes {
+		keyTxs[i] = types.Tx(h[:])
 	}
-	block.Data.Txs = types.ToTxs(keys)
+	block.Data.Txs = keyTxs
 
 	// Flush the WAL. Otherwise, we may not recompute the same proposal to sign,
 	// and the privValidator will refuse to sign anything.
@@ -1281,7 +1281,7 @@ func (cs *State) isProposalComplete() bool {
 //
 // NOTE: keep it side-effect free for clarity.
 // CONTRACT: cs.privValidator is not nil.
-func (cs *State) createProposalBlock() *types.Block {
+func (cs *State) createProposalBlock() (*types.Block, []types.TxKey) {
 	if cs.privValidator == nil {
 		panic("entered createProposalBlock with privValidator being nil")
 	}
@@ -1299,14 +1299,14 @@ func (cs *State) createProposalBlock() *types.Block {
 
 	default: // This shouldn't happen.
 		cs.Logger.Error("propose step; cannot propose anything without commit for the previous block")
-		return nil
+		return nil, nil
 	}
 
 	if cs.privValidatorPubKey == nil {
 		// If this node is a validator & proposer in the current round, it will
 		// miss the opportunity to create a block.
 		cs.Logger.Error("propose step; empty priv validator public key", "err", errPubKeyIsNotSet)
-		return nil
+		return nil, nil
 	}
 
 	proposerAddr := cs.privValidatorPubKey.Address()

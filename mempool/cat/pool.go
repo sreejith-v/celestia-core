@@ -40,7 +40,7 @@ var (
 	// set the default to 5, but this value can be changed in an init func
 	InclusionDelay   = 5 * time.Second
 	peerCount        = atomic.Int32{}
-	defaultSeenLimit = 60
+	defaultSeenLimit = 72
 )
 
 // TxPoolOption sets an optional parameter on the TxPool.
@@ -468,11 +468,12 @@ func (txmp *TxPool) allEntriesMostSeen() []*wrappedTx {
 //
 // If the mempool is empty or has no transactions fitting within the given
 // constraints, the result will also be empty.
-func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
+func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) (types.Txs, []types.TxKey) {
 	var totalGas, totalBytes int64
 	// currentTime := time.Now()
 
-	var keep []types.Tx //nolint:prealloc
+	var keep []types.Tx    //nolint:prealloc
+	var keys []types.TxKey //nolint:prealloc
 
 	seenLimit := getSeenLimit()
 
@@ -501,8 +502,9 @@ func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 		totalGas += w.gasWanted
 		txmp.store.markAsUnevictable(w.key)
 		keep = append(keep, w.tx)
+		keys = append(keys, w.key)
 	}
-	return keep
+	return keep, keys
 }
 
 // ReapMaxTxs returns up to max transactions from the mempool. The results are

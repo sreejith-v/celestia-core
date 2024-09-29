@@ -208,7 +208,7 @@ func decideProposal(
 	round int32,
 ) (proposal *types.Proposal, block *types.Block) {
 	cs1.mtx.Lock()
-	block = cs1.createProposalBlock()
+	block, _ = cs1.createProposalBlock()
 	blockParts := block.MakePartSet(types.BlockPartSizeBytes)
 
 	validRound := cs1.TwoThirdPrevoteRound

@@ -186,7 +186,7 @@ func TestFetchTxsFromKeys(t *testing.T) {
 	defer cancel()
 	reactor, pool := setupReactor(t)
 
-	numTxs := 10
+	numTxs := 100
 	txs := make([][]byte, numTxs)
 	keys := make([][]byte, numTxs)
 	peer := genPeer()

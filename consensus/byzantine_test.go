@@ -217,7 +217,7 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 		}
 		proposerAddr := lazyProposer.privValidatorPubKey.Address()
 
-		block := lazyProposer.blockExec.CreateProposalBlock(
+		block, _ := lazyProposer.blockExec.CreateProposalBlock(
 			lazyProposer.Height, lazyProposer.state, commit, proposerAddr,
 		)
 		blockHash := block.Hash()
@@ -474,7 +474,7 @@ func byzantineDecideProposalFunc(t *testing.T, height int64, round int32, cs *St
 	// Avoid sending on internalMsgQueue and running consensus state.
 
 	// Create a new proposal block from state/txs from the mempool.
-	block1 := cs.createProposalBlock()
+	block1, _ := cs.createProposalBlock()
 	blockParts1 := block1.MakePartSet(types.BlockPartSizeBytes)
 	polRound := cs.TwoThirdPrevoteRound
 	propBlockID := types.BlockID{Hash: block1.Hash(), PartSetHeader: blockParts1.Header()}
@@ -490,7 +490,7 @@ func byzantineDecideProposalFunc(t *testing.T, height int64, round int32, cs *St
 	deliverTxsRange(cs, 0, 1)
 
 	// Create a new proposal block from state/txs from the mempool.
-	block2 := cs.createProposalBlock()
+	block2, _ := cs.createProposalBlock()
 	blockParts2 := block2.MakePartSet(types.BlockPartSizeBytes)
 	polRound = cs.TwoThirdPrevoteRound
 	propBlockID = types.BlockID{Hash: block2.Hash(), PartSetHeader: blockParts2.Header()}

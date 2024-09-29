@@ -107,7 +107,7 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	height int64,
 	state State, commit *types.Commit,
 	proposerAddr []byte,
-) *types.Block {
+) (*types.Block, []types.TxKey) {
 
 	maxBytes := state.ConsensusParams.Block.MaxBytes
 	maxGas := state.ConsensusParams.Block.MaxGas
@@ -116,7 +116,7 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 
 	maxDataBytes := types.MaxDataBytes(maxBytes, evSize, state.Validators.Size())
 
-	txs := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas)
+	txs, hashes := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas)
 
 	var timestamp time.Time
 	if height == state.InitialHeight {
@@ -168,7 +168,7 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 		evidence,
 		proposerAddr,
 	)
-	return block
+	return block, hashes
 }
 
 func (blockExec *BlockExecutor) ProcessProposal(

@@ -318,7 +318,7 @@ func TestCreateProposalBlock(t *testing.T) {
 	)
 
 	commit := types.NewCommit(height-1, 0, types.BlockID{}, nil)
-	block := blockExec.CreateProposalBlock(
+	block, _ := blockExec.CreateProposalBlock(
 		height,
 		state, commit,
 		proposerAddr,
@@ -408,7 +408,7 @@ func TestMaxProposalBlockSize(t *testing.T) {
 	)
 
 	commit := types.NewCommit(height-1, 0, types.BlockID{}, nil)
-	block := blockExec.CreateProposalBlock(
+	block, _ := blockExec.CreateProposalBlock(
 		height,
 		state, commit,
 		proposerAddr,
