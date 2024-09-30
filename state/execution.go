@@ -126,35 +126,35 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	// 	timestamp = MedianTime(commit, state.LastValidators)
 	// }
 
-	preparedProposal, err := blockExec.proxyApp.PrepareProposalSync(
-		abci.RequestPrepareProposal{
-			BlockData:     &cmtproto.Data{Txs: txs.ToSliceOfBytes()},
-			BlockDataSize: maxDataBytes,
-			ChainId:       state.ChainID,
-			Height:        height,
-			// Time:          timestamp,
-		},
-	)
-	if err != nil {
-		// The App MUST ensure that only valid (and hence 'processable') transactions
-		// enter the mempool. Hence, at this point, we can't have any non-processable
-		// transaction causing an error.
-		//
-		// Also, the App can simply skip any transaction that could cause any kind of trouble.
-		// Either way, we can not recover in a meaningful way, unless we skip proposing
-		// this block, repair what caused the error and try again. Hence, we panic on
-		// purpose for now.
-		panic(err)
-	}
-	rawNewData := preparedProposal.GetBlockData()
-	var blockDataSize int
-	for _, tx := range rawNewData.GetTxs() {
-		blockDataSize += len(tx)
+	// preparedProposal, err := blockExec.proxyApp.PrepareProposalSync(
+	// 	abci.RequestPrepareProposal{
+	// 		BlockData:     &cmtproto.Data{Txs: txs.ToSliceOfBytes()},
+	// 		BlockDataSize: maxDataBytes,
+	// 		ChainId:       state.ChainID,
+	// 		Height:        height,
+	// 		Time:          timestamp,
+	// 	},
+	// )
+	// if err != nil {
+	// 	// The App MUST ensure that only valid (and hence 'processable') transactions
+	// 	// enter the mempool. Hence, at this point, we can't have any non-processable
+	// 	// transaction causing an error.
+	// 	//
+	// 	// Also, the App can simply skip any transaction that could cause any kind of trouble.
+	// 	// Either way, we can not recover in a meaningful way, unless we skip proposing
+	// 	// this block, repair what caused the error and try again. Hence, we panic on
+	// 	// purpose for now.
+	// 	panic(err)
+	// }
+	// rawNewData := preparedProposal.GetBlockData()
+	// var blockDataSize int
+	// for _, tx := range rawNewData.GetTxs() {
+	// 	blockDataSize += len(tx)
 
-		if maxDataBytes < int64(blockDataSize) {
-			panic("block data exceeds max amount of allowed bytes")
-		}
-	}
+	// 	if maxDataBytes < int64(blockDataSize) {
+	// 		panic("block data exceeds max amount of allowed bytes")
+	// 	}
+	// }
 
 	hashBytes := make([][]byte, len(hashes))
 	for i, h := range hashes {
@@ -163,17 +163,20 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 
 	// rawNewData.Hash = merkle.HashFromByteSlices(hashBytes)
 
-	newData, err := types.DataFromProto(rawNewData)
-	if err != nil {
-		// todo(evan): see if we can get rid of this panic
-		panic(err)
-	}
+	// newData, err := types.DataFromProto(rawNewData)
+	// if err != nil {
+	// 	// todo(evan): see if we can get rid of this panic
+	// 	panic(err)
+	// }
 
-	newData.SetHash(merkle.HashFromByteSlices(hashBytes))
+	data := types.Data{
+		Txs: txs,
+	}
+	data.SetHash(merkle.HashFromByteSlices(hashBytes))
 
 	block, _ := state.MakeBlock(
 		height,
-		newData,
+		data,
 		commit,
 		evidence,
 		proposerAddr,
