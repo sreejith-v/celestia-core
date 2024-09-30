@@ -177,7 +177,7 @@ func (s *store) getAllTxs() []*wrappedTx {
 func (s *store) getAllSeenTxs(seenLimit int) []*wrappedTx {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
-	txs := make([]*wrappedTx, len(s.txs))
+	txs := make([]*wrappedTx, 0) //nolint:prealloc
 	idx := 0
 	for _, tx := range s.txs {
 		if tx.seenCount < seenLimit {
