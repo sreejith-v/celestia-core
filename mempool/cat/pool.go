@@ -456,7 +456,7 @@ func (txmp *TxPool) seenEntries(seenLimit int) []*wrappedTx {
 	// Prune transactions that don't exceed the seenLimit
 	for _, tx := range txs {
 		seen := txmp.seenByPeersSet.GetSeenCount(tx.key)
-		if seen > seenLimit {
+		if seen >= seenLimit {
 			tx.seenCount = seen
 			prunedTxs = append(prunedTxs, tx)
 		}
@@ -487,9 +487,7 @@ func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) (types.Txs, []typ
 	var keep []types.Tx    //nolint:prealloc
 	var keys []types.TxKey //nolint:prealloc
 
-	seenLimit := getSeenLimit()
-
-	for _, w := range txmp.seenEntries(seenLimit) {
+	for _, w := range txmp.seenEntries(getSeenLimit()) {
 		// skip transactions that have been in the mempool for less than the inclusion delay
 		// This gives time for the transaction to be broadcast to all peers
 		// if currentTime.Sub(w.timestamp) < InclusionDelay {
