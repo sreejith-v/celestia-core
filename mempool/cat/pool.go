@@ -447,11 +447,27 @@ func (txmp *TxPool) allEntriesSorted() []*wrappedTx {
 }
 
 func (txmp *TxPool) seenEntries(seenLimit int) []*wrappedTx {
-	txs := txmp.store.getAllSeenTxs(seenLimit)
-	sort.Slice(txs, func(i, j int) bool {
-		return txs[i].seenCount > txs[j].seenCount
+	// Get all transactions from the store
+	txs := txmp.store.getAllTxs()
+
+	// Preallocate a slice to avoid reallocations
+	prunedTxs := make([]*wrappedTx, 0, len(txs))
+
+	// Prune transactions that don't exceed the seenLimit
+	for _, tx := range txs {
+		seen := txmp.seenByPeersSet.GetSeenCount(tx.key)
+		if seen > seenLimit {
+			tx.seenCount = seen
+			prunedTxs = append(prunedTxs, tx)
+		}
+	}
+
+	// Sort the remaining transactions by seenCount in descending order
+	sort.Slice(prunedTxs, func(i, j int) bool {
+		return prunedTxs[i].seenCount > prunedTxs[j].seenCount
 	})
-	return txs
+
+	return prunedTxs
 }
 
 // ReapMaxBytesMaxGas returns a slice of valid transactions that fit within the
