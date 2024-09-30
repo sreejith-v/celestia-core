@@ -153,7 +153,7 @@ func (conR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 	return []*p2p.ChannelDescriptor{
 		{
 			ID:                  StateChannel,
-			Priority:            5,
+			Priority:            20,
 			SendQueueCapacity:   100,
 			RecvMessageCapacity: maxMsgSize,
 			MessageType:         &cmtcons.Message{},
@@ -161,7 +161,7 @@ func (conR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 		{
 			ID: DataChannel, // maybe split between gossiping current block and catchup stuff
 			// once we gossip the whole block there's nothing left to send until next height or round
-			Priority:            10,
+			Priority:            20,
 			SendQueueCapacity:   100,
 			RecvBufferCapacity:  50 * 4096,
 			RecvMessageCapacity: maxMsgSize,
@@ -798,7 +798,7 @@ OUTER_LOOP:
 					schema.Upload,
 				)
 			}
-		case prs.Height < rs.Height-2: // catchup
+		case prs.Height < rs.Height-1: // catchup
 			blockStoreBase := conR.conS.blockStore.Base()
 			if blockStoreBase > 0 && prs.Height >= blockStoreBase {
 				heightLogger := logger.With("height", prs.Height)
