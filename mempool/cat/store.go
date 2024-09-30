@@ -174,6 +174,21 @@ func (s *store) getAllTxs() []*wrappedTx {
 	return txs
 }
 
+func (s *store) getAllSeenTxs(seenLimit int) []*wrappedTx {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	txs := make([]*wrappedTx, len(s.txs))
+	idx := 0
+	for _, tx := range s.txs {
+		if tx.seenCount < seenLimit {
+			continue
+		}
+		txs[idx] = tx
+		idx++
+	}
+	return txs
+}
+
 func (s *store) getEvictableTxsBelowPriority(priority int64) ([]*wrappedTx, int64) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()

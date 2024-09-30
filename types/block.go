@@ -1038,6 +1038,10 @@ type Data struct {
 	hash cmtbytes.HexBytes
 }
 
+func (data *Data) SetHash(h []byte) {
+	data.hash = cmtbytes.HexBytes(h)
+}
+
 // Hash returns the hash of the data
 func (data *Data) Hash() cmtbytes.HexBytes {
 	if data == nil {

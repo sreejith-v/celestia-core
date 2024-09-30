@@ -446,13 +446,9 @@ func (txmp *TxPool) allEntriesSorted() []*wrappedTx {
 	return txs
 }
 
-func (txmp *TxPool) allEntriesMostSeen() []*wrappedTx {
-	txs := txmp.allEntriesSorted()
-	for i, tx := range txs {
-		seen := txmp.seenByPeersSet.GetSeenCount(tx.key)
-		txs[i].seenCount = seen
-	}
-	sort.SliceStable(txs, func(i, j int) bool {
+func (txmp *TxPool) seenEntries(seenLimit int) []*wrappedTx {
+	txs := txmp.store.getAllSeenTxs(seenLimit)
+	sort.Slice(txs, func(i, j int) bool {
 		return txs[i].seenCount > txs[j].seenCount
 	})
 	return txs
@@ -477,30 +473,23 @@ func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) (types.Txs, []typ
 
 	seenLimit := getSeenLimit()
 
-	for _, w := range txmp.allEntriesMostSeen() {
+	for _, w := range txmp.seenEntries(seenLimit) {
 		// skip transactions that have been in the mempool for less than the inclusion delay
 		// This gives time for the transaction to be broadcast to all peers
 		// if currentTime.Sub(w.timestamp) < InclusionDelay {
 		// 	continue
 		// }
 
-		if w.seenCount < seenLimit {
-			txmp.logger.Error("too few seen to add to block!!", "seen limit", seenLimit, "seen count", w.seenCount)
-			continue
-		} else {
-			txmp.logger.Info("including tx in block", "seen", w.seenCount)
-		}
-
 		// N.B. When computing byte size, we need to include the overhead for
 		// encoding as protobuf to send to the application. This actually overestimates it
 		// as we add the proto overhead to each transaction
-		txBytes := types.ComputeProtoSizeForTxs([]types.Tx{w.tx})
+		txBytes := int64(len(w.tx) + 16)
 		if (maxGas >= 0 && totalGas+w.gasWanted > maxGas) || (maxBytes >= 0 && totalBytes+txBytes > maxBytes) {
 			continue
 		}
-		totalBytes += txBytes
+		totalBytes += int64(txBytes)
 		totalGas += w.gasWanted
-		txmp.store.markAsUnevictable(w.key)
+		// txmp.store.markAsUnevictable(w.key)
 		keep = append(keep, w.tx)
 		keys = append(keys, w.key)
 	}
