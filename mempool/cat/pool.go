@@ -40,7 +40,7 @@ var (
 	// set the default to 5, but this value can be changed in an init func
 	InclusionDelay   = 5 * time.Second
 	peerCount        = atomic.Int32{}
-	defaultSeenLimit = 72
+	defaultSeenLimit = 79
 )
 
 // TxPoolOption sets an optional parameter on the TxPool.
