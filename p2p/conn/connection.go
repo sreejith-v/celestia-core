@@ -50,8 +50,10 @@ const (
 	defaultPongTimeout         = 45 * time.Second
 )
 
-type receiveCbFunc func(chID byte, msgBytes []byte)
-type errorCbFunc func(interface{})
+type (
+	receiveCbFunc func(chID byte, msgBytes []byte)
+	errorCbFunc   func(interface{})
+)
 
 /*
 Each peer has one `MConnection` (multiplex connection) instance.
@@ -199,8 +201,8 @@ func NewMConnectionWithConfig(
 	}
 
 	// Create channels
-	var channelsIdx = map[byte]*Channel{}
-	var channels = []*Channel{}
+	channelsIdx := map[byte]*Channel{}
+	channels := []*Channel{}
 
 	for _, desc := range chDescs {
 		channel := newChannel(mconn, *desc, tracer, id)
@@ -717,6 +719,7 @@ func (c *MConnection) Status() ConnectionStatus {
 	status.RecvMonitor = c.recvMonitor.Status()
 	status.Channels = make([]ChannelStatus, len(c.channels))
 	for i, channel := range c.channels {
+		channel := channel
 		status.Channels[i] = ChannelStatus{
 			ID:                channel.desc.ID,
 			SendQueueCapacity: cap(channel.sendQueue),
@@ -871,7 +874,7 @@ func (ch *Channel) writePacketMsgTo(w io.Writer) (n int, err error) {
 // Not goroutine-safe
 func (ch *Channel) recvPacketMsg(packet tmp2p.PacketMsg) ([]byte, error) {
 	ch.Logger.Debug("Read PacketMsg", "conn", ch.conn, "packet", packet)
-	var recvCap, recvReceived = ch.desc.RecvMessageCapacity, len(ch.recving) + len(packet.Data)
+	recvCap, recvReceived := ch.desc.RecvMessageCapacity, len(ch.recving)+len(packet.Data)
 	if recvCap < recvReceived {
 		return nil, fmt.Errorf("received message exceeds available capacity: %v < %v", recvCap, recvReceived)
 	}
