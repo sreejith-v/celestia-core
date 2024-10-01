@@ -542,12 +542,12 @@ func (conR *Reactor) subscribeToBroadcastEvents() {
 		conR.Logger.Error("Error adding listener for events", "err", err)
 	}
 
-	if err := conR.conS.evsw.AddListenerForEvent(subscriber, types.EventVote,
-		func(data cmtevents.EventData) {
-			conR.broadcastHasVoteMessage(data.(*types.Vote))
-		}); err != nil {
-		conR.Logger.Error("Error adding listener for events", "err", err)
-	}
+	// if err := conR.conS.evsw.AddListenerForEvent(subscriber, types.EventVote,
+	// 	func(data cmtevents.EventData) {
+	// 		conR.broadcastHasVoteMessage(data.(*types.Vote))
+	// 	}); err != nil {
+	// 	conR.Logger.Error("Error adding listener for events", "err", err)
+	// }
 
 }
 
