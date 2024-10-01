@@ -20,7 +20,7 @@ import (
 const (
 	// default duration to wait before considering a peer non-responsive
 	// and searching for the tx from a new peer
-	DefaultGossipDelay = 200 * time.Millisecond
+	DefaultGossipDelay = 12000 * time.Millisecond
 
 	// Content Addressable Tx Pool gossips state based messages (SeenTx and WantTx) on a separate channel
 	// for cross compatibility
@@ -311,27 +311,30 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			}
 
 			go func(tx []byte, key types.TxKey) {
-				wants, has := memR.wantState.GetWants(key)
-				if has {
-					for peer := range wants {
-						p := memR.ids.GetPeer(peer)
-						if p == nil {
-							return
-						}
-						if p2p.SendEnvelopeShim(e.Src, p2p.Envelope{ //nolint:staticcheck
-							ChannelID: mempool.MempoolChannel,
-							Message:   &protomem.Txs{Txs: [][]byte{tx}},
-						}, memR.Logger) {
-							memR.wantState.Delete(key, peer)
-							// memR.mempool.PeerHasTx(peerID, txKey)
-							schema.WriteMempoolTx(
-								memR.traceClient,
-								string(p.ID()),
-								key[:],
-								schema.Upload,
-							)
+				for i := 0; i < 5; i++ {
+					wants, has := memR.wantState.GetWants(key)
+					if has {
+						for peer := range wants {
+							p := memR.ids.GetPeer(peer)
+							if p == nil {
+								continue
+							}
+							if p2p.SendEnvelopeShim(e.Src, p2p.Envelope{ //nolint:staticcheck
+								ChannelID: mempool.MempoolChannel,
+								Message:   &protomem.Txs{Txs: [][]byte{tx}},
+							}, memR.Logger) {
+								memR.wantState.Delete(key, peer)
+								// memR.mempool.PeerHasTx(peerID, txKey)
+								schema.WriteMempoolTx(
+									memR.traceClient,
+									string(p.ID()),
+									key[:],
+									schema.Upload,
+								)
+							}
 						}
 					}
+					time.Sleep(time.Second)
 				}
 
 			}(tx, key)
@@ -380,7 +383,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 
 		// We don't have the transaction, nor are we requesting it so we send the node
 		// a want msg
-		memR.requestTx(txKey, e.Src, 5)
+		memR.requestTx(txKey, e.Src, 10)
 
 	// A peer is requesting a transaction that we have claimed to have. Find the specified
 	// transaction and broadcast it to the peer. We may no longer have the transaction
