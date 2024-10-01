@@ -19,7 +19,7 @@ func TestBasicPartSet(t *testing.T) {
 	// Construct random data of size partSize * 100
 	nParts := 100
 	data := cmtrand.Bytes(testPartSize * nParts)
-	partSet := NewPartSetFromData(data, testPartSize)
+	partSet := NewPartSetFromData(data, []byte{}, testPartSize)
 
 	assert.NotEmpty(t, partSet.Hash())
 	assert.EqualValues(t, nParts, partSet.Total())
@@ -66,7 +66,7 @@ func TestBasicPartSet(t *testing.T) {
 func TestWrongProof(t *testing.T) {
 	// Construct random data of size partSize * 100
 	data := cmtrand.Bytes(testPartSize * 100)
-	partSet := NewPartSetFromData(data, testPartSize)
+	partSet := NewPartSetFromData(data, []byte{}, testPartSize)
 
 	// Test adding a part with wrong data.
 	partSet2 := NewPartSetFromHeader(partSet.Header())
@@ -101,7 +101,7 @@ func TestPartSetHeaderValidateBasic(t *testing.T) {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			data := cmtrand.Bytes(testPartSize * 100)
-			ps := NewPartSetFromData(data, testPartSize)
+			ps := NewPartSetFromData(data, []byte{}, testPartSize)
 			psHeader := ps.Header()
 			tc.malleatePartSetHeader(&psHeader)
 			assert.Equal(t, tc.expectErr, psHeader.ValidateBasic() != nil, "Validate Basic had an unexpected result")
@@ -130,7 +130,7 @@ func TestPartValidateBasic(t *testing.T) {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			data := cmtrand.Bytes(testPartSize * 100)
-			ps := NewPartSetFromData(data, testPartSize)
+			ps := NewPartSetFromData(data, []byte{}, testPartSize)
 			part := ps.GetPart(0)
 			tc.malleatePart(part)
 			assert.Equal(t, tc.expectErr, part.ValidateBasic() != nil, "Validate Basic had an unexpected result")

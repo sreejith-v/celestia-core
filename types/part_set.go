@@ -31,9 +31,11 @@ func (part *Part) ValidateBasic() error {
 	if len(part.Bytes) > int(BlockPartSizeBytes) {
 		return fmt.Errorf("too big: %d bytes, max: %d", len(part.Bytes), BlockPartSizeBytes)
 	}
-	if err := part.Proof.ValidateBasic(); err != nil {
-		return fmt.Errorf("wrong Proof: %w", err)
-	}
+	// assume we're using a single commitment over the block data and relying on
+	// the signed hashes from the compact block
+	// if err := part.Proof.ValidateBasic(); err != nil {
+	//  return fmt.Errorf("wrong Proof: %w", err)
+	// }
 	return nil
 }
 
@@ -78,13 +80,13 @@ func PartFromProto(pb *cmtproto.Part) (*Part, error) {
 	}
 
 	part := new(Part)
-	proof, err := merkle.ProofFromProto(&pb.Proof)
-	if err != nil {
-		return nil, err
-	}
+	// proof, err := merkle.ProofFromProto(&pb.Proof)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	part.Index = pb.Index
 	part.Bytes = pb.Bytes
-	part.Proof = *proof
+	// part.Proof = *proof
 
 	return part, part.ValidateBasic()
 }
@@ -163,7 +165,7 @@ type PartSet struct {
 // Returns an immutable, full PartSet from the data bytes.
 // The data bytes are split into "partSize" chunks, and merkle tree computed.
 // CONTRACT: partSize is greater than zero.
-func NewPartSetFromData(data []byte, partSize uint32) *PartSet {
+func NewPartSetFromData(data []byte, dataRoot []byte, partSize uint32) *PartSet {
 	// divide data into 4kb parts.
 	total := (uint32(len(data)) + partSize - 1) / partSize
 	parts := make([]*Part, total)
@@ -178,14 +180,17 @@ func NewPartSetFromData(data []byte, partSize uint32) *PartSet {
 		partsBytes[i] = part.Bytes
 		partsBitArray.SetIndex(int(i), true)
 	}
+	// assume we're using a single commitment over the block data and relying on
+	// the signed hashes from the compact block
+	//
 	// Compute merkle proofs
-	root, proofs := merkle.ProofsFromByteSlices(partsBytes)
-	for i := uint32(0); i < total; i++ {
-		parts[i].Proof = *proofs[i]
-	}
+	// root, proofs := merkle.ProofsFromByteSlices(partsBytes) for i := uint32(0); i < total;
+	// i++ {
+	//  parts[i].Proof = *proofs[i]
+	// }
 	return &PartSet{
 		total:         total,
-		hash:          root,
+		hash:          dataRoot,
 		parts:         parts,
 		partsBitArray: partsBitArray,
 		count:         total,
@@ -280,10 +285,10 @@ func (ps *PartSet) AddPart(part *Part) (bool, error) {
 		return false, nil
 	}
 
-	// Check hash proof
-	if part.Proof.Verify(ps.Hash(), part.Bytes) != nil {
-		return false, ErrPartSetInvalidProof
-	}
+	// // Check hash proof
+	// if part.Proof.Verify(ps.Hash(), part.Bytes) != nil {
+	// 	return false, ErrPartSetInvalidProof
+	// }
 
 	// Add part
 	ps.parts[part.Index] = part

@@ -111,6 +111,11 @@ func (sp *Proof) StringIndented(indent string) string {
 // NOTE: it expects the LeafHash and the elements of Aunts to be of size tmhash.Size,
 // and it expects at most MaxAunts elements in Aunts.
 func (sp *Proof) ValidateBasic() error {
+	// hack: todo remove proofs from the block parts that now rely on compact
+	// block hashes and the data root
+	if sp == nil {
+		return nil
+	}
 	if sp.Total < 0 {
 		return errors.New("negative Total")
 	}
