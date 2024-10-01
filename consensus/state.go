@@ -2081,14 +2081,14 @@ func (cs *State) fetchCompactBlock(ctx context.Context, blockHash []byte, compac
 	}
 
 	if !bytes.Equal(block.Hash(), cs.Proposal.BlockID.Hash) {
-		cs.Logger.Error("received compact block with header hash [%v] that does not match proposal [%v]", block.Hash(), cs.Proposal.BlockID.Hash)
+		cs.Logger.Error("received compact block with header hash that does not match proposal", "hash", block.Hash(), "block id hash", cs.Proposal.BlockID.Hash)
 		return
 	}
 
 	// check that the part set header matched that of the
 	partSet := block.MakePartSet(types.BlockPartSizeBytes)
 	if !partSet.HasHeader(cs.Proposal.BlockID.PartSetHeader) {
-		cs.Logger.Error("received compact block with part set header [%v] that does not match proposal [%v]", partSet.Header(), cs.Proposal.BlockID.PartSetHeader)
+		cs.Logger.Error("received compact block with part set header that does not match proposal", "header", partSet.Header(), "psh", cs.Proposal.BlockID.PartSetHeader)
 		return
 	}
 
