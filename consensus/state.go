@@ -344,11 +344,11 @@ func (cs *State) LoadCommit(height int64) *types.Commit {
 func (cs *State) OnStart() error {
 	// We may set the WAL in testing before calling Start, so only OpenWAL if its
 	// still the nilWAL.
-	if _, ok := cs.wal.(nilWAL); ok {
-		if err := cs.loadWalFile(); err != nil {
-			return err
-		}
-	}
+	// if _, ok := cs.wal.(nilWAL); ok {
+	// 	if err := cs.loadWalFile(); err != nil {
+	// 		return err
+	// 	}
+	// }
 
 	cs.metrics.StartHeight.Set(float64(cs.Height))
 
