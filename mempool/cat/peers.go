@@ -94,8 +94,7 @@ func (ids *mempoolIDs) Reclaim(peerID p2p.ID) uint16 {
 	removedID, ok := ids.peerMap[peerID]
 	if ok {
 		delete(ids.activeIDs, removedID)
-		delete(ids.peerMap, peerID)
-		peerCount.Add(-1)
+		// delete(ids.peerMap, peerID)
 		return removedID
 	}
 	return 0
@@ -103,10 +102,9 @@ func (ids *mempoolIDs) Reclaim(peerID p2p.ID) uint16 {
 
 // GetIDForPeer returns the shorthand ID reserved for the peer.
 func (ids *mempoolIDs) GetIDForPeer(peerID p2p.ID) uint16 {
-	ids.mtx.Lock()
-	defer ids.mtx.Unlock()
-
+	ids.mtx.RLock()
 	id, exists := ids.peerMap[peerID]
+	ids.mtx.RUnlock()
 	if !exists {
 		id = ids.getIDSafe(peerID)
 	}
