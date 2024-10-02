@@ -32,17 +32,41 @@ func newMempoolIDs() *mempoolIDs {
 // ReserveForPeer searches for the next unused ID and assigns it to the
 // peer.
 func (ids *mempoolIDs) ReserveForPeer(peer p2p.Peer) {
-	ids.mtx.Lock()
-	defer ids.mtx.Unlock()
 
 	// if _, ok := ids.peerMap[peer.ID()]; ok {
 	// 	panic("duplicate peer added to mempool")
 	// }
 
-	curID := ids.nextPeerID()
-	ids.peerMap[peer.ID()] = curID
+	curID := ids.getIDSafe(peer.ID())
+
+	ids.mtx.Lock()
+	defer ids.mtx.Unlock()
+
 	ids.activeIDs[curID] = peer
-	ids.knownIDs[curID] = peer.ID()
+}
+
+// getIDSafe ensures that all known ids are accountted for
+func (ids *mempoolIDs) getIDSafe(id p2p.ID) uint16 {
+	ids.mtx.Lock()
+	defer ids.mtx.Unlock()
+	var newid uint16
+	var seen bool
+
+	for sid, pid := range ids.knownIDs {
+		if id == pid {
+			newid = sid
+			seen = true
+			break
+		}
+	}
+	if !seen {
+		newid = ids.nextPeerID()
+	}
+
+	ids.peerMap[id] = newid
+	ids.knownIDs[newid] = id
+
+	return newid
 }
 
 // nextPeerID returns the next unused peer ID to use.
@@ -84,10 +108,7 @@ func (ids *mempoolIDs) GetIDForPeer(peerID p2p.ID) uint16 {
 
 	id, exists := ids.peerMap[peerID]
 	if !exists {
-		id = ids.nextPeerID()
-		ids.peerMap[peerID] = id
-		ids.knownIDs[id] = peerID
-		fmt.Println("known IDs:", len(ids.knownIDs))
+		id = ids.getIDSafe(peerID)
 	}
 	return id
 }

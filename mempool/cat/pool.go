@@ -264,6 +264,7 @@ func (txmp *TxPool) CheckTx(tx types.Tx, cb func(*abci.Response), txInfo mempool
 	} else {
 		key = sha256.Sum256(tx)
 	}
+
 	rsp, err := txmp.TryAddNewTx(tx, key, txInfo, isBlobTx)
 	if err != nil {
 		return err
@@ -468,10 +469,6 @@ func (txmp *TxPool) seenEntries(seenLimit int) []*wrappedTx {
 			prunedTxs = append(prunedTxs, tx)
 			// treat non-blob txs as special since they propagate a lot faster and
 			// we need to get txsim off the ground
-		} else if !tx.isBlob {
-			if seen >= 2*(seenLimit/3) {
-				prunedTxs = append(prunedTxs, tx)
-			}
 		}
 	}
 
