@@ -2,6 +2,7 @@ package cat
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"sync"
 	"time"
@@ -99,7 +100,13 @@ func (memR *Reactor) FetchKeysFromTxs(ctx context.Context, txs [][]byte) ([][]by
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		key := types.Tx(tx).Key()
+		key := [32]byte{}
+		blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
+		if isBlobTx {
+			key = sha256.Sum256(blobTx.Tx)
+		} else {
+			key = sha256.Sum256(tx)
+		}
 		keys[idx] = key[:]
 		has := memR.mempool.store.has(key)
 		if !has {
@@ -111,7 +118,7 @@ func (memR *Reactor) FetchKeysFromTxs(ctx context.Context, txs [][]byte) ([][]by
 			//
 			// We don't set the priority, gasWanted or sender fields because we
 			// don't know them.
-			wtx := newWrappedTx(tx, key, memR.mempool.Height(), 0, 0, "", false)
+			wtx := newWrappedTx(tx, key, memR.mempool.Height(), 0, 0, "", isBlobTx)
 			wtx.evictable = false
 			memR.broadcastNewTx(wtx)
 			// For safety we also store this transaction in the mempool (ignoring

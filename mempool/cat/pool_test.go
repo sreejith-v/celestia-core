@@ -734,7 +734,7 @@ func TestTxPool_ConcurrentlyAddingTx(t *testing.T) {
 		wg.Add(1)
 		go func(sender uint16) {
 			defer wg.Done()
-			_, err := txmp.TryAddNewTx(tx, tx.Key(), mempool.TxInfo{SenderID: sender})
+			_, err := txmp.TryAddNewTx(tx, tx.Key(), mempool.TxInfo{SenderID: sender}, false)
 			errCh <- err
 		}(uint16(i + 1))
 	}

@@ -1,6 +1,7 @@
 package cat
 
 import (
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"os"
@@ -256,8 +257,14 @@ func (txmp *TxPool) CheckTx(tx types.Tx, cb func(*abci.Response), txInfo mempool
 
 	// This is a new transaction that we haven't seen before. Verify it against the app and attempt
 	// to add it to the transaction pool.
-	key := tx.Key()
-	rsp, err := txmp.TryAddNewTx(tx, key, txInfo)
+	key := [32]byte{}
+	blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
+	if isBlobTx {
+		key = sha256.Sum256(blobTx.Tx)
+	} else {
+		key = sha256.Sum256(tx)
+	}
+	rsp, err := txmp.TryAddNewTx(tx, key, txInfo, isBlobTx)
 	if err != nil {
 		return err
 	}
@@ -319,7 +326,7 @@ func (txmp *TxPool) markToBeBroadcast(key types.TxKey) {
 // to avoid races with the same tx. It then call `CheckTx` so that the application can validate it.
 // If it passes `CheckTx`, the new transaction is added to the mempool as long as it has
 // sufficient priority and space else if evicted it will return an error
-func (txmp *TxPool) TryAddNewTx(tx types.Tx, key types.TxKey, txInfo mempool.TxInfo) (*abci.ResponseCheckTx, error) {
+func (txmp *TxPool) TryAddNewTx(tx types.Tx, key types.TxKey, txInfo mempool.TxInfo, isBlob bool) (*abci.ResponseCheckTx, error) {
 	// First check any of the caches to see if we can conclude early. We may have already seen and processed
 	// the transaction, or it may have already been committed.
 	if txmp.store.hasCommitted(key) {
@@ -374,7 +381,7 @@ func (txmp *TxPool) TryAddNewTx(tx types.Tx, key types.TxKey, txInfo mempool.TxI
 
 	// Create wrapped tx
 	wtx := newWrappedTx(
-		tx, key, txmp.Height(), rsp.GasWanted, rsp.Priority, rsp.Sender, txInfo.SenderID == 0,
+		tx, key, txmp.Height(), rsp.GasWanted, rsp.Priority, rsp.Sender, isBlob,
 	)
 
 	// Perform the post check
@@ -459,6 +466,12 @@ func (txmp *TxPool) seenEntries(seenLimit int) []*wrappedTx {
 		if seen >= seenLimit {
 			tx.seenCount = seen
 			prunedTxs = append(prunedTxs, tx)
+			// treat non-blob txs as special since they propagate a lot faster and
+			// we need to get txsim off the ground
+		} else if !tx.isBlob {
+			if seen >= 2*(seenLimit/3) {
+				prunedTxs = append(prunedTxs, tx)
+			}
 		}
 	}
 
@@ -468,6 +481,10 @@ func (txmp *TxPool) seenEntries(seenLimit int) []*wrappedTx {
 	})
 
 	return prunedTxs
+}
+
+func (txmp *TxPool) GetAllTxs() []*wrappedTx {
+	return txmp.store.getAllTxs()
 }
 
 // ReapMaxBytesMaxGas returns a slice of valid transactions that fit within the

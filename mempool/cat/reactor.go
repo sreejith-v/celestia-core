@@ -1,6 +1,7 @@
 package cat
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"time"
 
@@ -133,19 +134,20 @@ func (memR *Reactor) OnStart() error {
 		memR.Logger.Info("Tx broadcasting is disabled")
 	}
 	// run a separate go routine to check for time based TTLs
-	if memR.mempool.config.TTLDuration > 0 {
-		go func() {
-			ticker := time.NewTicker(memR.mempool.config.TTLDuration)
-			for {
-				select {
-				case <-ticker.C:
-					memR.mempool.CheckToPurgeExpiredTxs()
-				case <-memR.Quit():
-					return
-				}
-			}
-		}()
-	}
+	// if memR.mempool.config.TTLDuration > 0 {
+	// 	go func() {
+	// 		ticker := time.NewTicker(memR.mempool.config.TTLDuration)
+	// 		for {
+	// 			select {
+	// 			case <-ticker.C:
+	// 				memR.mempool.CheckToPurgeExpiredTxs()
+	// 			case <-memR.Quit():
+	// 				return
+	// 			}
+	// 		}
+	// 	}()
+	// }
+	go memR.PeriodicallyBroadcastSeenTxs(time.Second)
 
 	return nil
 }
@@ -279,7 +281,14 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		var err error
 		for _, tx := range protoTxs {
 			ntx := types.Tx(tx)
-			key := ntx.Key()
+			key := [32]byte{}
+			// manually calculate the key to determine is its a blobtx while we're at it
+			blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
+			if isBlobTx {
+				key = sha256.Sum256(blobTx.Tx)
+			} else {
+				key = sha256.Sum256(tx)
+			}
 			schema.WriteMempoolTx(memR.traceClient, string(e.Src.ID()), key[:], schema.Download)
 			// If we requested the transaction we mark it as received.
 			if memR.requests.Has(peerID, key) {
@@ -296,7 +305,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			memR.blockFetcher.TryAddMissingTx(key, tx)
 
 			// Now attempt to add the tx to the mempool.
-			_, err = memR.mempool.TryAddNewTx(ntx, key, txInfo)
+			_, err = memR.mempool.TryAddNewTx(ntx, key, txInfo, isBlobTx)
 			if err != nil && err != ErrTxInMempool && err != ErrTxRecentlyCommitted {
 				if memR.blockFetcher.IsMissingTx(key) {
 					memR.Logger.Error("tx in block is not valid by mempool")
@@ -436,6 +445,18 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 	}
 }
 
+// PeriodicallyBroadcastSeenTxs will rebroadcast a seenTx for a given tx. It
+// cycles through all txs, and waits the provided duration between each
+// broadcast.
+func (memR *Reactor) PeriodicallyBroadcastSeenTxs(dur time.Duration) {
+	for {
+		for _, tx := range memR.mempool.GetAllTxs() {
+			memR.broadcastSeenTx(tx.key, string(memR.self))
+			time.Sleep(dur)
+		}
+	}
+}
+
 // PeerState describes the state of a peer.
 type PeerState interface {
 	GetHeight() int64
@@ -444,7 +465,7 @@ type PeerState interface {
 // broadcastSeenTx broadcasts a SeenTx message to all peers unless we
 // know they have already seen the transaction
 func (memR *Reactor) broadcastSeenTx(txKey types.TxKey, from string) {
-	memR.Logger.Debug("broadcasting seen tx to all peers", "tx_key", txKey.String(), "from", from)
+	// memR.Logger.Debug("broadcasting seen tx to all peers", "tx_key", txKey.String(), "from", from)
 	msg := &protomem.Message{
 		Sum: &protomem.Message_SeenTx{
 			SeenTx: &protomem.SeenTx{
