@@ -34,7 +34,7 @@ var (
 // before it is included in the block.
 const (
 	// InclusionDelay       = 2 * time.Second
-	SeenSetPruneInterval = 100 * time.Minute
+	SeenSetPruneInterval = 30 * time.Minute
 )
 
 var (
@@ -609,6 +609,8 @@ func (txmp *TxPool) Update(
 	keys := make([]types.TxKey, len(blockTxs))
 	for idx, tx := range blockTxs {
 		keys[idx] = tx.Key()
+		// txmp.seenByPeersSet.RemoveKey(keys[idx])
+		txmp.rejectedTxCache.Push(keys[idx])
 	}
 	txmp.store.markAsCommitted(keys)
 

@@ -611,7 +611,7 @@ func (memR *Reactor) findNewPeerToRequestTx(txKey types.TxKey, tries int) {
 	peer := memR.ids.GetPeer(peerID)
 	if peer == nil {
 		// we disconnected from that peer, retry again until we exhaust the list
-		memR.mempool.seenByPeersSet.Remove(txKey, peerID)
+		// memR.mempool.seenByPeersSet.Remove(txKey, peerID)
 		memR.findNewPeerToRequestTx(txKey, tries-1)
 	} else {
 		memR.mempool.metrics.RerequestedTxs.Add(1)
