@@ -71,6 +71,7 @@ type MempoolPeerState struct {
 	StateUpdate  MempoolStateUpdateType `json:"state_update"`
 	TxHash       string                 `json:"tx_hash"`
 	TransferType TransferType           `json:"transfer_type"`
+	Validator    string                 `json:"validator,omitempty"` // originating valiator for seenTxs
 }
 
 // Table returns the table name for the MempoolPeerState struct.
@@ -86,6 +87,7 @@ func WriteMempoolPeerState(
 	stateUpdate MempoolStateUpdateType,
 	txHash []byte,
 	transferType TransferType,
+	validator string,
 ) {
 	// this check is redundant to what is checked during client.Write, although it
 	// is an optimization to avoid allocations from creating the map of fields.
@@ -97,6 +99,7 @@ func WriteMempoolPeerState(
 		StateUpdate:  stateUpdate,
 		TransferType: transferType,
 		TxHash:       bytes.HexBytes(txHash).String(),
+		Validator:    validator,
 	})
 }
 

@@ -369,6 +369,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			schema.SeenTx,
 			txKey[:],
 			schema.Download,
+			msg.Peer,
 		)
 		peerID := memR.ids.GetIDForPeer(p2p.ID(msg.Peer))
 		success := memR.mempool.PeerHasTx(peerID, txKey)
@@ -409,6 +410,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			schema.WantTx,
 			txKey[:],
 			schema.Download,
+			"",
 		)
 		tx, has := memR.mempool.GetTxByKey(txKey)
 		// TODO: consider handling the case where we receive a HasTx message from a peer
@@ -498,6 +500,8 @@ func (memR *Reactor) broadcastSeenTx(txKey types.TxKey, from string) {
 
 		if !peer.Send(MempoolStateChannel, bz) {
 			memR.Logger.Error("failed to send seen tx to peer", "peerID", peer.ID(), "txKey", txKey)
+		} else {
+			schema.WriteMempoolPeerState(memR.traceClient, string(peer.ID()), schema.SeenTx, txKey[:], schema.Upload, from)
 		}
 	}
 	// memR.Logger.Debug("broadcasted seen tx to all peers", "tx_key", txKey.String())
@@ -559,12 +563,13 @@ func (memR *Reactor) requestTx(txKey types.TxKey, peer p2p.Peer, tries int) {
 
 	success := peer.Send(MempoolStateChannel, bz) //nolint:staticcheck
 	if success {
-		memR.Logger.Debug("requested transaction", "txKey", txKey, "peerID", peer.ID())
-		memR.mempool.metrics.RequestedTxs.Add(1)
-		requested := memR.requests.Add(txKey, memR.ids.GetIDForPeer(peer.ID()), memR.findNewPeerToRequestTx, tries)
-		if !requested {
-			memR.Logger.Debug("have already marked a tx as requested", "txKey", txKey, "peerID", peer.ID())
-		}
+		// memR.Logger.Debug("requested transaction", "txKey", txKey, "peerID", peer.ID())
+		// memR.mempool.metrics.RequestedTxs.Add(1)
+		schema.WriteMempoolPeerState(memR.traceClient, string(peer.ID()), schema.WantTx, txKey[:], schema.Upload, "")
+		memR.requests.Add(txKey, memR.ids.GetIDForPeer(peer.ID()), memR.findNewPeerToRequestTx, tries)
+		// if !requested {
+		// 	memR.Logger.Debug("have already marked a tx as requested", "txKey", txKey, "peerID", peer.ID())
+		// }
 	} else {
 		memR.Logger.Error("failed to send message to request transaction", "txKey", txKey, "peerID", peer.ID())
 	}

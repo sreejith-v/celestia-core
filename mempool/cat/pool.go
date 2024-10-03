@@ -720,6 +720,7 @@ func (txmp *TxPool) addNewTransaction(wtx *wrappedTx, checkTxRes *abci.ResponseC
 }
 
 func (txmp *TxPool) evictTx(wtx *wrappedTx) {
+	fmt.Println("EVICTING TX NO NO NO NO BAD STOP")
 	txmp.store.remove(wtx.key)
 	txmp.evictedTxCache.Push(wtx.key)
 	txmp.logger.Error("tx evicted")

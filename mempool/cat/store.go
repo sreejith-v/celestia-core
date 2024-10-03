@@ -1,6 +1,7 @@
 package cat
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -98,6 +99,7 @@ func (s *store) remove(txKey types.TxKey) bool {
 		return false
 	}
 	s.bytes -= tx.size()
+	fmt.Println("DELETING TX IS THIS ALLOWED?")
 	delete(s.txs, txKey)
 	return true
 }
@@ -213,6 +215,7 @@ func (s *store) purgeExpiredTxs(expirationHeight int64, expirationAge time.Time)
 	for key, tx := range s.txs {
 		if tx.height < expirationHeight || tx.timestamp.Before(expirationAge) {
 			s.bytes -= tx.size()
+			fmt.Println("DELETING TX EXCUSE ME NO NO NO NO NO")
 			delete(s.txs, key)
 			purgedTxs = append(purgedTxs, tx)
 			counter++
