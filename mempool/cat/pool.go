@@ -609,7 +609,7 @@ func (txmp *TxPool) Update(
 	keys := make([]types.TxKey, len(blockTxs))
 	for idx, tx := range blockTxs {
 		keys[idx] = tx.Key()
-		// txmp.seenByPeersSet.RemoveKey(keys[idx])
+		txmp.seenByPeersSet.RemoveKey(keys[idx])
 		txmp.rejectedTxCache.Push(keys[idx])
 	}
 	txmp.store.markAsCommitted(keys)
