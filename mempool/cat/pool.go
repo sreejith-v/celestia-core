@@ -373,6 +373,7 @@ func (txmp *TxPool) TryAddNewTx(tx types.Tx, key types.TxKey, txInfo mempool.TxI
 	if rsp.Code != abci.CodeTypeOK {
 		if txmp.config.KeepInvalidTxsInCache {
 			txmp.rejectedTxCache.Push(key)
+			fmt.Println("tx rejected!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 		}
 		txmp.metrics.FailedTxs.Add(1)
 		// we don't return an error when there has been a fail code. Instead the

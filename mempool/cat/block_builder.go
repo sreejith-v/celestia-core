@@ -52,7 +52,7 @@ func (memR *Reactor) FetchTxsFromKeys(ctx context.Context, blockID []byte, compa
 			0,
 			len(compactData),
 			0,
-			blockID,
+			nil,
 		)
 		return txs, nil
 	}
@@ -68,13 +68,15 @@ func (memR *Reactor) FetchTxsFromKeys(ctx context.Context, blockID []byte, compa
 	defer func() {
 		timeTaken := request.TimeTaken()
 		memR.Logger.Info("fetched txs", "timeTaken", timeTaken, "numRetrieved", initialNumMissing-len(request.missingKeys), "numMissing", len(request.missingKeys))
+		missingKeys := make([][]byte, len(request.missingKeys))
+
 		schema.WriteMempoolRecoveryStats(
 			memR.traceClient,
 			initialNumMissing,
 			initialNumMissing-len(request.missingKeys),
 			len(compactData),
 			timeTaken,
-			blockID,
+			missingKeys,
 		)
 		memR.mempool.metrics.RecoveryRate.Observe(float64(initialNumMissing-len(request.missingKeys)) / float64(initialNumMissing))
 	}()

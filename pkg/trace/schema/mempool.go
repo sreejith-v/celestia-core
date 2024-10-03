@@ -108,11 +108,11 @@ const (
 )
 
 type MempoolRecovery struct {
-	Missing   int    `json:"missing"`
-	Recovered int    `json:"recovered"`
-	Total     int    `json:"total"`
-	TimeTaken uint64 `json:"time_taken"`
-	BlockID   string `json:"block_id"`
+	Missing   int      `json:"missing"`
+	Recovered int      `json:"recovered"`
+	Total     int      `json:"total"`
+	TimeTaken uint64   `json:"time_taken"`
+	Hashes    []string `json:"hashes"`
 }
 
 func (m MempoolRecovery) Table() string {
@@ -125,13 +125,17 @@ func WriteMempoolRecoveryStats(
 	recovered int,
 	total int,
 	timeTaken uint64,
-	blockID []byte,
+	hashes [][]byte,
 ) {
+	txs := make([]string, len(hashes))
+	for i, hash := range hashes {
+		txs[i] = bytes.HexBytes(hash).String()
+	}
 	client.Write(MempoolRecovery{
 		Missing:   missing,
 		Recovered: recovered,
 		Total:     total,
 		TimeTaken: timeTaken,
-		BlockID:   bytes.HexBytes(blockID).String(),
+		Hashes:    txs,
 	})
 }
