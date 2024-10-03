@@ -314,7 +314,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 				memR.Logger.Info("Could not add tx from peer", "peerID", peerID, "txKey", key, "err", err)
 				return
 			}
-			if !memR.opts.ListenOnly {
+			if !memR.opts.ListenOnly && err == nil {
 				// We broadcast only transactions that we deem valid and actually have in our mempool.
 				memR.broadcastSeenTx(key, string(memR.self))
 			}
