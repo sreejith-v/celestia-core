@@ -377,6 +377,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		if !success {
 			return
 		}
+		fmt.Println("peer has tx", msg.Peer, types.TxKey(msg.TxKey).String())
 		go memR.broadcastSeenTx(types.TxKey(msg.TxKey), msg.Peer)
 
 		// Check if we don't already have the transaction and that it was recently rejected
