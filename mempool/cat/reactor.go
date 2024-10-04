@@ -309,7 +309,11 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			if err != nil || rsp.Code != abci.CodeTypeOK {
 				memR.Logger.Error("Could not add tx from peer", "peerID", peerID, "txKey", key, "err", err)
 				// We broadcast only transactions that we deem valid and actually have in our mempool.
-				schema.WriteMempoolRejected(memR.traceClient, string(e.Src.ID()), key[:], uint64(rsp.Code), err)
+				code := uint32(69)
+				if rsp != nil {
+					code = rsp.Code
+				}
+				schema.WriteMempoolRejected(memR.traceClient, string(e.Src.ID()), key[:], uint64(code), err)
 				return
 			}
 
