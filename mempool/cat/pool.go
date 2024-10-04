@@ -41,7 +41,7 @@ var (
 	// set the default to 5, but this value can be changed in an init func
 	InclusionDelay   = 5 * time.Second
 	peerCount        = atomic.Int32{}
-	defaultSeenLimit = 82
+	defaultSeenLimit = 2
 )
 
 // TxPoolOption sets an optional parameter on the TxPool.
@@ -277,7 +277,9 @@ func (txmp *TxPool) CheckTx(tx types.Tx, cb func(*abci.Response), txInfo mempool
 	}()
 
 	// push to the broadcast queue that a new transaction is ready
-	txmp.markToBeBroadcast(key)
+	if txInfo.SenderID == 0 {
+		txmp.markToBeBroadcast(key)
+	}
 	return nil
 }
 

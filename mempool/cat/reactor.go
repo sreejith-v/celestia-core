@@ -281,7 +281,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 
 		for _, tx := range protoTxs {
 			ntx := types.Tx(tx)
-			key := [32]byte{}
+			var key types.TxKey
 			// manually calculate the key to determine is its a blobtx while we're at it
 			blobTx, isBlobTx := types.UnmarshalBlobTx(tx)
 			if isBlobTx {
@@ -289,7 +289,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			} else {
 				key = sha256.Sum256(tx)
 			}
-			schema.WriteMempoolTx(memR.traceClient, string(e.Src.ID()), key[:], schema.Download)
+			schema.WriteMempoolTx(memR.traceClient, string(e.Src.ID()), key[:], len(ntx), schema.Download)
 			// If we requested the transaction we mark it as received.
 			if memR.requests.Has(peerID, key) {
 				memR.requests.MarkReceived(peerID, key)
@@ -338,6 +338,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 									memR.traceClient,
 									string(p.ID()),
 									key[:],
+									len(tx),
 									schema.Upload,
 								)
 							}
@@ -428,6 +429,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 					memR.traceClient,
 					string(e.Src.ID()),
 					txKey[:],
+					len(tx),
 					schema.Upload,
 				)
 			}
@@ -538,6 +540,7 @@ func (memR *Reactor) broadcastNewTx(wtx *wrappedTx) {
 
 		if peer.Send(mempool.MempoolChannel, bz) { //nolint:staticcheck
 			// memR.mempool.PeerHasTx(id, wtx.key)
+			schema.WriteMempoolTx(memR.traceClient, string(peer.ID()), wtx.key[:], len(wtx.tx), schema.UploadBroadcast)
 		} else {
 			memR.Logger.Error("failed to send new tx to peer", "peerID", peer.ID(), "txKey", wtx.key)
 		}
