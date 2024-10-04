@@ -11,6 +11,7 @@ func MempoolTables() []string {
 		MempoolTxTable,
 		MempoolPeerStateTable,
 		MempoolRecoveryTable,
+		MempoolRejectedTable,
 	}
 }
 
@@ -105,6 +106,7 @@ func WriteMempoolPeerState(
 
 const (
 	MempoolRecoveryTable = "mempool_recovery"
+	MempoolRejectedTable = "mempool_rejected"
 )
 
 type MempoolRecovery struct {
@@ -137,5 +139,40 @@ func WriteMempoolRecoveryStats(
 		Total:     total,
 		TimeTaken: timeTaken,
 		Hashes:    txs,
+	})
+}
+
+type MempoolRejected struct {
+	Code   uint64 `json:"code"`
+	Error  string `json:"error"`
+	TxHash string `json:"tx_hash"`
+	Peer   string `json:"peer"`
+}
+
+func (m MempoolRejected) Table() string {
+	return MempoolRejectedTable
+}
+
+func WriteMempoolRejected(
+	client trace.Tracer,
+	peer string,
+	txHash []byte,
+	code uint64,
+	err error,
+) {
+	// this check is redundant to what is checked during client.Write, although it
+	// is an optimization to avoid allocations from creating the map of fields.
+	if !client.IsCollecting(MempoolRejectedTable) {
+		return
+	}
+	var errS string
+	if err != nil {
+		errS = err.Error()
+	}
+	client.Write(MempoolRejected{
+		Peer:   peer,
+		Code:   code,
+		TxHash: bytes.HexBytes(txHash).String(),
+		Error:  errS,
 	})
 }

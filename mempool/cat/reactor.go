@@ -7,6 +7,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
+	abci "github.com/tendermint/tendermint/abci/types"
 	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	"github.com/tendermint/tendermint/libs/log"
@@ -278,7 +279,6 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		txInfo := mempool.TxInfo{SenderID: peerID}
 		txInfo.SenderP2PID = e.Src.ID()
 
-		var err error
 		for _, tx := range protoTxs {
 			ntx := types.Tx(tx)
 			key := [32]byte{}
@@ -305,19 +305,15 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			memR.blockFetcher.TryAddMissingTx(key, tx)
 
 			// Now attempt to add the tx to the mempool.
-			_, err = memR.mempool.TryAddNewTx(ntx, key, txInfo, isBlobTx)
-			if err != nil && err != ErrTxInMempool && err != ErrTxRecentlyCommitted {
-				if memR.blockFetcher.IsMissingTx(key) {
-					memR.Logger.Error("tx in block is not valid by mempool")
-				}
-
-				memR.Logger.Info("Could not add tx from peer", "peerID", peerID, "txKey", key, "err", err)
+			rsp, err := memR.mempool.TryAddNewTx(ntx, key, txInfo, isBlobTx)
+			if err != nil || rsp.Code != abci.CodeTypeOK {
+				memR.Logger.Error("Could not add tx from peer", "peerID", peerID, "txKey", key, "err", err)
+				// We broadcast only transactions that we deem valid and actually have in our mempool.
+				schema.WriteMempoolRejected(memR.traceClient, string(e.Src.ID()), key[:], uint64(rsp.Code), err)
 				return
 			}
-			if !memR.opts.ListenOnly && err == nil {
-				// We broadcast only transactions that we deem valid and actually have in our mempool.
-				memR.broadcastSeenTx(key, string(memR.self))
-			}
+
+			memR.broadcastSeenTx(key, string(memR.self))
 
 			go func(tx []byte, key types.TxKey) {
 				for i := 0; i < 5; i++ {
