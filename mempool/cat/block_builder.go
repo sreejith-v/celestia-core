@@ -58,6 +58,10 @@ func (memR *Reactor) FetchTxsFromKeys(ctx context.Context, blockID []byte, compa
 		return txs, nil
 	}
 	initialNumMissing := len(missingKeys)
+	missingTxs := make([]string, len(missingKeys))
+	for i, tx := range missingKeys {
+		missingTxs[i] = bytes.HexBytes(tx[:]).String()
+	}
 
 	// setup a request for this block and begin to track and retrieve all missing transactions
 	request := memR.blockFetcher.newRequest(
@@ -67,13 +71,8 @@ func (memR *Reactor) FetchTxsFromKeys(ctx context.Context, blockID []byte, compa
 		txs,
 	)
 
-	defer func() {
+	defer func(missingTxs []string) {
 		timeTaken := request.TimeTaken()
-
-		missingTxs := make([]string, len(request.missingKeys))
-		for i, tx := range missingKeys {
-			missingTxs[i] = bytes.HexBytes(tx[:]).String()
-		}
 
 		schema.WriteMempoolRecoveryStats(
 			memR.traceClient,
@@ -86,7 +85,7 @@ func (memR *Reactor) FetchTxsFromKeys(ctx context.Context, blockID []byte, compa
 
 		memR.Logger.Info("fetched txs", "timeTaken", timeTaken, "numRetrieved", initialNumMissing-len(request.missingKeys), "numMissing", len(request.missingKeys))
 		memR.mempool.metrics.RecoveryRate.Observe(float64(initialNumMissing-len(request.missingKeys)) / float64(initialNumMissing))
-	}()
+	}(missingTxs)
 
 	// request the missing transactions if we haven't already
 	for _, key := range missingKeys {
