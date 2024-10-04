@@ -41,7 +41,7 @@ var (
 	// set the default to 5, but this value can be changed in an init func
 	InclusionDelay   = 5 * time.Second
 	peerCount        = atomic.Int32{}
-	defaultSeenLimit = 2
+	defaultSeenLimit = 82
 )
 
 // TxPoolOption sets an optional parameter on the TxPool.
@@ -470,8 +470,6 @@ func (txmp *TxPool) seenEntries(seenLimit int) []*wrappedTx {
 		if seen >= seenLimit {
 			tx.seenCount = seen
 			prunedTxs = append(prunedTxs, tx)
-			// treat non-blob txs as special since they propagate a lot faster and
-			// we need to get txsim off the ground
 		}
 	}
 
@@ -520,7 +518,7 @@ func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) (types.Txs, []typ
 		}
 		totalBytes += int64(txBytes)
 		totalGas += w.gasWanted
-		// txmp.store.markAsUnevictable(w.key)
+		txmp.store.markAsUnevictable(w.key)
 		keep = append(keep, w.tx)
 		keys = append(keys, w.key)
 	}
