@@ -29,6 +29,17 @@ func newMempoolIDs() *mempoolIDs {
 	}
 }
 
+func (ids *mempoolIDs) getPeerFromID(id p2p.ID) (p2p.Peer, bool) {
+	ids.mtx.RLock()
+	defer ids.mtx.RUnlock()
+	for _, peer := range ids.activeIDs {
+		if peer.ID() == id {
+			return peer, true
+		}
+	}
+	return nil, false
+}
+
 // ReserveForPeer searches for the next unused ID and assigns it to the
 // peer.
 func (ids *mempoolIDs) ReserveForPeer(peer p2p.Peer) {

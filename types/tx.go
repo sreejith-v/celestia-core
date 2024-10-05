@@ -60,12 +60,19 @@ func (key TxKey) String() string {
 	return fmt.Sprintf("TxKey{%X}", key[:])
 }
 
-func TxKeyFromBytes(bytes []byte) (TxKey, error) {
-	if len(bytes) != TxKeySize {
-		return TxKey{}, fmt.Errorf("incorrect tx key size. Expected %d bytes, got %d", TxKeySize, len(bytes))
+var (
+	empty = bytes.Repeat([]byte{0}, TxKeySize)
+)
+
+func TxKeyFromBytes(bz []byte) (TxKey, error) {
+	if len(bz) != TxKeySize {
+		return TxKey{}, fmt.Errorf("incorrect tx key size. Expected %d bytes, got %d", TxKeySize, len(bz))
+	}
+	if bytes.Equal(bz, empty) {
+		return TxKey{}, fmt.Errorf("empty tx key")
 	}
 	var key TxKey
-	copy(key[:], bytes)
+	copy(key[:], bz)
 	return key, nil
 }
 

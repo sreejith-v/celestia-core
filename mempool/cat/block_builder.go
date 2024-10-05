@@ -26,12 +26,15 @@ func (memR *Reactor) FetchTxsFromKeys(ctx context.Context, blockID []byte, compa
 	}
 
 	txs := make([][]byte, len(compactData))
-	missingKeys := make(map[int]types.TxKey, len(compactData))
+	missingKeys := make(map[int]types.TxKey)
 
 	// iterate through the keys to know what transactions we have and what are missing
 	for i, key := range compactData {
 		txKey, err := types.TxKeyFromBytes(key)
 		if err != nil {
+			fmt.Println("INCORRECT COMPLACT BLONKS ERROOR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+			fmt.Println("INCORRECT COMPLACT BLONKS ERROOR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+			panic(err)
 			return nil, fmt.Errorf("incorrect compact blocks format: %w", err)
 		}
 		wtx := memR.mempool.store.get(txKey)
@@ -59,8 +62,10 @@ func (memR *Reactor) FetchTxsFromKeys(ctx context.Context, blockID []byte, compa
 	}
 	initialNumMissing := len(missingKeys)
 	missingTxs := make([]string, len(missingKeys))
-	for i, tx := range missingKeys {
-		missingTxs[i] = bytes.HexBytes(tx[:]).String()
+	cursor := 0
+	for _, tx := range missingKeys {
+		missingTxs[cursor] = bytes.HexBytes(tx[:]).String()
+		cursor++
 	}
 
 	// setup a request for this block and begin to track and retrieve all missing transactions

@@ -148,7 +148,7 @@ func (memR *Reactor) OnStart() error {
 	// 		}
 	// 	}()
 	// }
-	go memR.PeriodicallyBroadcastSeenTxs(time.Second)
+	go memR.PeriodicallyClearWants(time.Second * 3)
 
 	return nil
 }
@@ -234,7 +234,7 @@ func (memR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	// we won't receive any responses from them.
 	outboundRequests := memR.requests.ClearAllRequestsFrom(peerID)
 	for key := range outboundRequests {
-		memR.findNewPeerToRequestTx(key, 5)
+		memR.findNewPeerToRequestTx(key, 7)
 	}
 	n := peerCount.Add(-1)
 	if n < 0 {
@@ -320,33 +320,29 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			memR.broadcastSeenTx(key, string(memR.self))
 
 			go func(tx []byte, key types.TxKey) {
-				for i := 0; i < 5; i++ {
-					wants, has := memR.wantState.GetWants(key)
-					if has {
-						for peer := range wants {
-							p := memR.ids.GetPeer(peer)
-							if p == nil {
-								continue
-							}
-							if p2p.SendEnvelopeShim(e.Src, p2p.Envelope{ //nolint:staticcheck
-								ChannelID: mempool.MempoolChannel,
-								Message:   &protomem.Txs{Txs: [][]byte{tx}},
-							}, memR.Logger) {
-								memR.wantState.Delete(key, peer)
-								// memR.mempool.PeerHasTx(peerID, txKey)
-								schema.WriteMempoolTx(
-									memR.traceClient,
-									string(p.ID()),
-									key[:],
-									len(tx),
-									schema.Upload,
-								)
-							}
+				wants, has := memR.wantState.GetWants(key)
+				if has {
+					for peer := range wants {
+						p, has := memR.ids.getPeerFromID(peer)
+						if !has || p == nil {
+							continue
+						}
+						if p2p.SendEnvelopeShim(e.Src, p2p.Envelope{ //nolint:staticcheck
+							ChannelID: mempool.MempoolChannel,
+							Message:   &protomem.Txs{Txs: [][]byte{tx}},
+						}, memR.Logger) {
+							// memR.mempool.PeerHasTx(peerID, txKey)
+							memR.wantState.Delete(key, peer)
+							schema.WriteMempoolTx(
+								memR.traceClient,
+								string(p.ID()),
+								key[:],
+								len(tx),
+								schema.Upload,
+							)
 						}
 					}
-					time.Sleep(time.Second)
 				}
-
 			}(tx, key)
 		}
 
@@ -399,7 +395,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 
 		// We don't have the transaction, nor are we requesting it so we send the node
 		// a want msg
-		memR.requestTx(txKey, e.Src, 10)
+		memR.requestTx(txKey, e.Src, 3)
 
 	// A peer is requesting a transaction that we have claimed to have. Find the specified
 	// transaction and broadcast it to the peer. We may no longer have the transaction
@@ -441,10 +437,10 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		} else {
 			if !memR.mempool.IsRejectedTx(txKey) && !memR.mempool.store.hasCommitted(txKey) {
 				memR.ids.mtx.RLock()
-				peer, has := memR.ids.peerMap[e.Src.ID()]
+				_, has := memR.ids.peerMap[e.Src.ID()]
 				memR.ids.mtx.RUnlock()
 				if has {
-					memR.wantState.Add(txKey, peer)
+					memR.wantState.Add(txKey, e.Src.ID())
 				}
 			}
 		}
@@ -459,11 +455,37 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 // PeriodicallyBroadcastSeenTxs will rebroadcast a seenTx for a given tx. It
 // cycles through all txs, and waits the provided duration between each
 // broadcast.
-func (memR *Reactor) PeriodicallyBroadcastSeenTxs(dur time.Duration) {
+func (memR *Reactor) PeriodicallyClearWants(dur time.Duration) {
 	for {
 		for _, tx := range memR.mempool.GetAllTxs() {
-			memR.broadcastSeenTx(tx.key, string(memR.self))
-			time.Sleep(dur)
+			memR.ClearWant(tx.key, tx.tx)
+		}
+		time.Sleep(dur)
+	}
+}
+
+func (memR *Reactor) ClearWant(key types.TxKey, tx types.Tx) {
+	wants, has := memR.wantState.GetWants(key)
+	if has {
+		for peer := range wants {
+			p, has := memR.ids.getPeerFromID(peer)
+			if !has || p == nil {
+				continue
+			}
+			if p2p.SendEnvelopeShim(p, p2p.Envelope{ //nolint:staticcheck
+				ChannelID: mempool.MempoolChannel,
+				Message:   &protomem.Txs{Txs: [][]byte{tx}},
+			}, memR.Logger) {
+				// memR.mempool.PeerHasTx(peerID, txKey)
+				memR.wantState.Delete(key, peer)
+				schema.WriteMempoolTx(
+					memR.traceClient,
+					string(p.ID()),
+					key[:],
+					len(tx),
+					schema.Upload,
+				)
+			}
 		}
 	}
 }
