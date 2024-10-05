@@ -1,6 +1,7 @@
 package cat
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/tendermint/tendermint/p2p"
@@ -35,20 +36,21 @@ func (f *wantState) Add(tx types.TxKey, peer p2p.ID) {
 	f.wants[tx][peer] = struct{}{}
 }
 
-func (f *wantState) Delete(tx types.TxKey, peer p2p.ID) {
+func (f *wantState) Delete(tx types.TxKey, peer p2p.ID) error {
 	f.mtx.Lock()
 	defer f.mtx.Unlock()
 	ws, has := f.wants[tx]
 	if !has {
-		return
+		return fmt.Errorf("no wants for transaction found", peer, tx.String())
 	}
 	_, has = ws[peer]
 	if !has {
-		return
+		return fmt.Errorf("peer didn't want the transaction", peer, tx.String())
 	}
 	delete(ws, peer)
 	f.wants[tx] = ws
 	if len(f.wants[tx]) == 0 {
 		delete(f.wants, tx)
 	}
+	return nil
 }

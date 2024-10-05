@@ -319,31 +319,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 
 			memR.broadcastSeenTx(key, string(memR.self))
 
-			go func(tx []byte, key types.TxKey) {
-				wants, has := memR.wantState.GetWants(key)
-				if has {
-					for peer := range wants {
-						p, has := memR.ids.getPeerFromID(peer)
-						if !has || p == nil {
-							continue
-						}
-						if p2p.SendEnvelopeShim(e.Src, p2p.Envelope{ //nolint:staticcheck
-							ChannelID: mempool.MempoolChannel,
-							Message:   &protomem.Txs{Txs: [][]byte{tx}},
-						}, memR.Logger) {
-							// memR.mempool.PeerHasTx(peerID, txKey)
-							memR.wantState.Delete(key, peer)
-							schema.WriteMempoolTx(
-								memR.traceClient,
-								string(p.ID()),
-								key[:],
-								len(tx),
-								schema.Upload,
-							)
-						}
-					}
-				}
-			}(tx, key)
+			go memR.ClearWant(key, tx)
 		}
 
 	// A peer has indicated to us that it has a transaction. We first verify the txkey and
@@ -457,6 +433,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 // broadcast.
 func (memR *Reactor) PeriodicallyClearWants(dur time.Duration) {
 	for {
+		fmt.Println("clearing wants --------------------")
 		for _, tx := range memR.mempool.GetAllTxs() {
 			memR.ClearWant(tx.key, tx.tx)
 		}
@@ -468,6 +445,7 @@ func (memR *Reactor) ClearWant(key types.TxKey, tx types.Tx) {
 	wants, has := memR.wantState.GetWants(key)
 	if has {
 		for peer := range wants {
+			fmt.Println("peer wanted tx", peer, key.String())
 			p, has := memR.ids.getPeerFromID(peer)
 			if !has || p == nil {
 				continue
@@ -477,13 +455,16 @@ func (memR *Reactor) ClearWant(key types.TxKey, tx types.Tx) {
 				Message:   &protomem.Txs{Txs: [][]byte{tx}},
 			}, memR.Logger) {
 				// memR.mempool.PeerHasTx(peerID, txKey)
-				memR.wantState.Delete(key, peer)
+				err := memR.wantState.Delete(key, peer)
+				if err != nil {
+					fmt.Println("faaaaaack", err)
+				}
 				schema.WriteMempoolTx(
 					memR.traceClient,
 					string(p.ID()),
 					key[:],
 					len(tx),
-					schema.Upload,
+					schema.UploadClear,
 				)
 			}
 		}
