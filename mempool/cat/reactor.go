@@ -127,7 +127,8 @@ func (memR *Reactor) OnStart() error {
 				// listen in for any newly verified tx via RPC, then immediately
 				// broadcast it to all connected peers.
 				case nextTx := <-memR.mempool.next():
-					memR.broadcastNewTx(nextTx)
+					memR.broadcastSeenTx(nextTx.key, string(memR.self))
+					// memR.broadcastNewTx(nextTx)
 				}
 			}
 		}()
@@ -394,7 +395,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		// TODO: consider handling the case where we receive a HasTx message from a peer
 		// before we receive a WantTx message from them. In this case we might
 		// ignore the request if we know it's no longer valid.
-		if has && !memR.opts.ListenOnly {
+		if has {
 			// peerID := memR.ids.GetIDForPeer(e.Src.ID())
 			// memR.Logger.Debug("sending a transaction in response to a want msg", "peer", peerID, "txKey", txKey)
 			if p2p.SendEnvelopeShim(e.Src, p2p.Envelope{ //nolint:staticcheck
