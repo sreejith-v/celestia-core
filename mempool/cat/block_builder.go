@@ -34,7 +34,6 @@ func (memR *Reactor) FetchTxsFromKeys(ctx context.Context, blockID []byte, compa
 		if err != nil {
 			fmt.Println("INCORRECT COMPLACT BLONKS ERROOR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 			fmt.Println("INCORRECT COMPLACT BLONKS ERROOR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-			panic(err)
 			return nil, fmt.Errorf("incorrect compact blocks format: %w", err)
 		}
 		wtx := memR.mempool.store.get(txKey)
