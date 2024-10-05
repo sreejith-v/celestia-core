@@ -460,7 +460,8 @@ func (bs *BlockStore) SaveTxInfo(block *types.Block, txResponseCodes []uint32) e
 	batch := bs.db.NewBatch()
 
 	// Batch and save txs from the block
-	for i, tx := range block.Txs {
+	hashes := block.GetTxHashes()
+	for i := range block.Txs {
 		txInfo := cmtstore.TxInfo{
 			Height: block.Height,
 			Index:  uint32(i),
@@ -470,7 +471,7 @@ func (bs *BlockStore) SaveTxInfo(block *types.Block, txResponseCodes []uint32) e
 		if err != nil {
 			return fmt.Errorf("unable to marshal tx: %w", err)
 		}
-		if err := batch.Set(calcTxHashKey(tx.Hash()), txInfoBytes); err != nil {
+		if err := batch.Set(calcTxHashKey(hashes[i]), txInfoBytes); err != nil {
 			return err
 		}
 	}

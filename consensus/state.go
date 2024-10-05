@@ -1698,6 +1698,10 @@ func (cs *State) finalizeCommit(height int64) {
 
 	blockID, ok := cs.Votes.Precommits(cs.CommitRound).TwoThirdsMajority()
 	block, blockParts := cs.ProposalBlock, cs.ProposalBlockParts
+	compactBlock := cs.ProposalCompactBlock
+	if block != nil && compactBlock != nil {
+		block.SetTxHashes(compactBlock.Txs)
+	}
 
 	if !ok {
 		panic("cannot finalize commit; commit does not have 2/3 majority")

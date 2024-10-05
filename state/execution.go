@@ -347,10 +347,20 @@ func (blockExec *BlockExecutor) Commit(
 		"app_hash", fmt.Sprintf("%X", res.Data),
 	)
 
+	hashes := block.GetTxHashes()
+	if len(hashes) == 0 && len(block.Txs) != 0 {
+		fmt.Println("weird we didn't set the txs ==========================")
+		hashes = make([]types.Tx, 0, len(block.Txs))
+		for _, tx := range block.Txs {
+			key := tx.Key()
+			hashes = append(hashes, types.Tx(key[:]))
+		}
+	}
+
 	// Update mempool.
 	err = blockExec.mempool.Update(
 		block.Height,
-		block.Txs,
+		hashes,
 		deliverTxResponses,
 		TxPreCheck(state),
 		TxPostCheck(state),

@@ -41,7 +41,7 @@ var (
 	// set the default to 5, but this value can be changed in an init func
 	InclusionDelay   = 5 * time.Second
 	peerCount        = atomic.Int32{}
-	defaultSeenLimit = 82
+	defaultSeenLimit = 84
 )
 
 // TxPoolOption sets an optional parameter on the TxPool.
@@ -577,17 +577,17 @@ func getSeenLimit() int {
 // calling Update.
 func (txmp *TxPool) Update(
 	blockHeight int64,
-	blockTxs types.Txs,
+	blockHashes types.Txs, // switched to hashes hackily to avoid re-hashing
 	deliverTxResponses []*abci.ResponseDeliverTx,
 	newPreFn mempool.PreCheckFunc,
 	newPostFn mempool.PostCheckFunc,
 ) error {
 	// Safety check: Transactions and responses must match in number.
-	if len(blockTxs) != len(deliverTxResponses) {
+	if len(blockHashes) != len(deliverTxResponses) {
 		panic(fmt.Sprintf("mempool: got %d transactions but %d DeliverTx responses",
-			len(blockTxs), len(deliverTxResponses)))
+			len(blockHashes), len(deliverTxResponses)))
 	}
-	txmp.logger.Debug("updating mempool", "height", blockHeight, "txs", len(blockTxs))
+	txmp.logger.Debug("updating mempool", "height", blockHeight, "txs", len(blockHashes))
 
 	txmp.updateMtx.Lock()
 	txmp.height = blockHeight
@@ -602,14 +602,14 @@ func (txmp *TxPool) Update(
 	txmp.lastPurgeTime = time.Now()
 	txmp.updateMtx.Unlock()
 
-	txmp.metrics.SuccessfulTxs.Add(float64(len(blockTxs)))
+	txmp.metrics.SuccessfulTxs.Add(float64(len(blockHashes)))
 
 	txmp.store.clearCommitted()
 
 	// add the recently committed transactions to the cache
-	keys := make([]types.TxKey, len(blockTxs))
-	for idx, tx := range blockTxs {
-		keys[idx] = tx.Key()
+	keys := make([]types.TxKey, len(blockHashes))
+	for idx, tx := range blockHashes {
+		keys[idx] = types.TxKey(tx)
 		txmp.seenByPeersSet.RemoveKey(keys[idx])
 		txmp.rejectedTxCache.Push(keys[idx])
 	}

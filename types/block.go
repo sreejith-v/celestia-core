@@ -47,6 +47,27 @@ type Block struct {
 	Data       `json:"data"`
 	Evidence   EvidenceData `json:"evidence"`
 	LastCommit *Commit      `json:"last_commit"`
+
+	// cached data
+	txHashes []Tx
+}
+
+func (b *Block) GetTxHashes() []Tx {
+	hashes := b.txHashes
+	if len(hashes) != len(b.Txs) {
+		fmt.Println("shoot we have to calculate the hashes of the txs oh noooooooooooooooo")
+		hashes = make([]Tx, 0, len(b.Txs))
+		for _, tx := range b.Txs {
+			k := tx.Key()
+			hashes = append(hashes, k[:])
+		}
+	}
+	b.txHashes = hashes
+	return hashes
+}
+
+func (b *Block) SetTxHashes(hashes []Tx) {
+	b.txHashes = hashes
 }
 
 // ValidateBasic performs basic validation that doesn't involve state data. It

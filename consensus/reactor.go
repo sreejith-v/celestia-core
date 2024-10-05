@@ -744,7 +744,7 @@ OUTER_LOOP:
 			if err != nil {
 				panic(err)
 			}
-			logger.Info("Sending compact block", "height", prs.Height, "round", prs.Round)
+			// logger.Info("Sending compact block", "height", prs.Height, "round", prs.Round)
 			if p2p.SendEnvelopeShim(peer, p2p.Envelope{ //nolint: staticcheck
 				ChannelID: DataChannel,
 				Message: &cmtcons.CompactBlock{

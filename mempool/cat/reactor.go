@@ -434,7 +434,6 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 // broadcast.
 func (memR *Reactor) PeriodicallyClearWants(dur time.Duration) {
 	for {
-		fmt.Println("clearing wants --------------------")
 		for _, tx := range memR.mempool.GetAllTxs() {
 			memR.ClearWant(tx.key, tx.tx)
 		}
