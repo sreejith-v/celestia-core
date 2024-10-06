@@ -33,15 +33,15 @@ const (
 	maxMsgSize = maxAddressSize * maxGetSelection
 
 	// ensure we have enough peers
-	defaultEnsurePeersPeriod = 5 * time.Second
+	defaultEnsurePeersPeriod = 30 * time.Second
 
 	// Seed/Crawler constants
 
 	// minTimeBetweenCrawls is a minimum time between attempts to crawl a peer.
-	minTimeBetweenCrawls = 1 * time.Minute
+	minTimeBetweenCrawls = 2 * time.Minute
 
 	// check some peers every this
-	crawlPeerPeriod = 15 * time.Second
+	crawlPeerPeriod = 30 * time.Second
 
 	maxAttemptsToDial = 16 // ~ 35h in total (last attempt - 18h)
 
@@ -51,7 +51,7 @@ const (
 	biasToSelectNewPeers = 30 // 70 to select good peers
 
 	// if a peer is marked bad, it will be banned for at least this time period
-	defaultBanTime = 1 * time.Second
+	defaultBanTime = 24 * time.Hour
 )
 
 type errMaxAttemptsToDial struct {
@@ -572,7 +572,7 @@ func (r *Reactor) dialPeer(addr *p2p.NetAddress) error {
 	// exponential backoff if it's not our first attempt to dial given address
 	if attempts > 0 {
 		jitter := time.Duration(cmtrand.Float64() * float64(time.Second)) // 1s == (1e9 ns)
-		backoffDuration := jitter + (time.Duration(attempts) * time.Second)
+		backoffDuration := jitter + ((1 << uint(attempts)) * time.Second)
 		backoffDuration = r.maxBackoffDurationForPeer(addr, backoffDuration)
 		sinceLastDialed := time.Since(lastDialed)
 		if sinceLastDialed < backoffDuration {
