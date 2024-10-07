@@ -28,6 +28,7 @@ type MempoolTx struct {
 	Peer         string       `json:"peer"`
 	Size         int          `json:"size"`
 	TransferType TransferType `json:"transfer_type"`
+	ValPrio      uint64       `json:"valprio"`
 }
 
 // Table returns the table name for the MempoolTx struct.
@@ -37,7 +38,7 @@ func (m MempoolTx) Table() string {
 
 // WriteMempoolTx writes a tracing point for a tx using the predetermined
 // schema for mempool tracing.
-func WriteMempoolTx(client trace.Tracer, peer string, txHash []byte, size int, transferType TransferType) {
+func WriteMempoolTx(client trace.Tracer, peer string, txHash []byte, size int, valprio uint64, transferType TransferType) {
 	// this check is redundant to what is checked during client.Write, although it
 	// is an optimization to avoid allocations from the map of fields.
 	if !client.IsCollecting(MempoolTxTable) {
@@ -48,6 +49,7 @@ func WriteMempoolTx(client trace.Tracer, peer string, txHash []byte, size int, t
 		Peer:         peer,
 		Size:         size,
 		TransferType: transferType,
+		ValPrio:      valprio,
 	})
 }
 

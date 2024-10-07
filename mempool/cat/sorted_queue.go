@@ -73,6 +73,7 @@ func (tp *TxPrioritizor) AddPeer(peer p2p.Peer) {
 						string(peer.ID()),
 						wtx.key[:],
 						len(wtx.tx),
+						wtx.valPrio,
 						schema.Upload,
 					)
 				} else {
