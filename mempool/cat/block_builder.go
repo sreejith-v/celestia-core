@@ -182,7 +182,7 @@ func (memR *Reactor) FetchKeysFromTxs(ctx context.Context, txs [][]byte) ([][]by
 			//
 			// We don't set the priority, gasWanted or sender fields because we
 			// don't know them.
-			wtx := newWrappedTx(tx, key, memR.mempool.Height(), 0, 0, "", isBlobTx)
+			wtx := newWrappedTx(tx, key, memR.mempool.Height(), 0, 0, "", 0)
 			wtx.evictable = false
 			memR.broadcastNewTx(wtx)
 			// For safety we also store this transaction in the mempool (ignoring

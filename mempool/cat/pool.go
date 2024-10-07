@@ -40,8 +40,7 @@ const (
 var (
 	// set the default to 5, but this value can be changed in an init func
 	InclusionDelay   = 5 * time.Second
-	peerCount        = atomic.Int32{}
-	defaultSeenLimit = 84
+	defaultSeenLimit = 0
 )
 
 // TxPoolOption sets an optional parameter on the TxPool.
@@ -95,6 +94,8 @@ type TxPool struct {
 	broadcastCh      chan *wrappedTx
 	broadcastMtx     sync.Mutex
 	txsToBeBroadcast []types.TxKey
+
+	valPrio atomic.Uint64
 }
 
 // NewTxPool constructs a new, empty content addressable txpool at the specified
@@ -126,6 +127,7 @@ func NewTxPool(
 		store:            newStore(),
 		broadcastCh:      make(chan *wrappedTx),
 		txsToBeBroadcast: make([]types.TxKey, 0),
+		valPrio:          atomic.Uint64{},
 	}
 
 	for _, opt := range options {
@@ -214,6 +216,16 @@ func (txmp *TxPool) GetTxByKey(txKey types.TxKey) (types.Tx, bool) {
 	return types.Tx{}, false
 }
 
+// GetWrappedTxByKey retrieves a transaction based on the key. It returns a bool
+// indicating whether transaction was found in the cache.
+func (txmp *TxPool) GetWrappedTxByKey(txKey types.TxKey) (*wrappedTx, bool) {
+	wtx := txmp.store.get(txKey)
+	if wtx != nil {
+		return wtx, true
+	}
+	return wtx, false
+}
+
 // WasRecentlyEvicted returns a bool indicating whether the transaction with
 // the specified key was recently evicted and is currently within the cache.
 func (txmp *TxPool) WasRecentlyEvicted(txKey types.TxKey) bool {
@@ -265,10 +277,14 @@ func (txmp *TxPool) CheckTx(tx types.Tx, cb func(*abci.Response), txInfo mempool
 		key = sha256.Sum256(tx)
 	}
 
-	rsp, err := txmp.TryAddNewTx(tx, key, txInfo, isBlobTx)
+	valPrio := txmp.valPrio.Load()
+	txmp.valPrio.Add(1)
+
+	rsp, _, err := txmp.TryAddNewTx(tx, key, txInfo, valPrio)
 	if err != nil {
 		return err
 	}
+
 	defer func() {
 		// call the callback if it is set
 		if cb != nil {
@@ -329,48 +345,48 @@ func (txmp *TxPool) markToBeBroadcast(key types.TxKey) {
 // to avoid races with the same tx. It then call `CheckTx` so that the application can validate it.
 // If it passes `CheckTx`, the new transaction is added to the mempool as long as it has
 // sufficient priority and space else if evicted it will return an error
-func (txmp *TxPool) TryAddNewTx(tx types.Tx, key types.TxKey, txInfo mempool.TxInfo, isBlob bool) (*abci.ResponseCheckTx, error) {
+func (txmp *TxPool) TryAddNewTx(tx types.Tx, key types.TxKey, txInfo mempool.TxInfo, valPrio uint64) (*abci.ResponseCheckTx, *wrappedTx, error) {
 	// First check any of the caches to see if we can conclude early. We may have already seen and processed
 	// the transaction, or it may have already been committed.
 	if txmp.store.hasCommitted(key) {
-		return nil, ErrTxRecentlyCommitted
+		return nil, nil, ErrTxRecentlyCommitted
 	}
 
 	if txmp.IsRejectedTx(key) {
 		// The peer has sent us a transaction that we have previously marked as invalid. Since `CheckTx` can
 		// be non-deterministic, we don't punish the peer but instead just ignore the tx
-		return nil, ErrTxAlreadyRejected
+		return nil, nil, ErrTxAlreadyRejected
 	}
 
 	if txmp.Has(key) {
 		txmp.metrics.AlreadySeenTxs.Add(1)
 		// The peer has sent us a transaction that we have already seen
-		return nil, ErrTxInMempool
+		return nil, nil, ErrTxInMempool
 	}
 
 	// reserve the key
 	if !txmp.store.reserve(key) {
 		txmp.logger.Debug("mempool already attempting to verify and add transaction", "txKey", fmt.Sprintf("%X", key))
 		// txmp.PeerHasTx(txInfo.SenderID, key)
-		return nil, ErrTxInMempool
+		return nil, nil, ErrTxInMempool
 	}
 	defer txmp.store.release(key)
 
 	// If a precheck hook is defined, call it before invoking the application.
 	if err := txmp.preCheck(tx); err != nil {
 		txmp.metrics.FailedTxs.Add(1)
-		return nil, mempool.ErrPreCheck{Reason: err}
+		return nil, nil, mempool.ErrPreCheck{Reason: err}
 	}
 
 	// Early exit if the proxy connection has an error.
 	if err := txmp.proxyAppConn.Error(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Invoke an ABCI CheckTx for this transaction.
 	rsp, err := txmp.proxyAppConn.CheckTxSync(abci.RequestCheckTx{Tx: tx})
 	if err != nil {
-		return rsp, err
+		return rsp, nil, err
 	}
 	if rsp.Code != abci.CodeTypeOK {
 		if txmp.config.KeepInvalidTxsInCache {
@@ -380,12 +396,12 @@ func (txmp *TxPool) TryAddNewTx(tx types.Tx, key types.TxKey, txInfo mempool.TxI
 		txmp.metrics.FailedTxs.Add(1)
 		// we don't return an error when there has been a fail code. Instead the
 		// client is expected to read the error code and the raw log
-		return rsp, nil
+		return rsp, nil, nil
 	}
 
 	// Create wrapped tx
 	wtx := newWrappedTx(
-		tx, key, txmp.Height(), rsp.GasWanted, rsp.Priority, rsp.Sender, isBlob,
+		tx, key, txmp.Height(), rsp.GasWanted, rsp.Priority, rsp.Sender, valPrio,
 	)
 
 	// Perform the post check
@@ -395,15 +411,15 @@ func (txmp *TxPool) TryAddNewTx(tx types.Tx, key types.TxKey, txInfo mempool.TxI
 			txmp.rejectedTxCache.Push(key)
 		}
 		txmp.metrics.FailedTxs.Add(1)
-		return rsp, fmt.Errorf("rejected bad transaction after post check: %w", err)
+		return rsp, nil, fmt.Errorf("rejected bad transaction after post check: %w", err)
 	}
 
 	// Now we consider the transaction to be valid. Once a transaction is valid, it
 	// can only become invalid if recheckTx is enabled and RecheckTx returns a non zero code
 	if err := txmp.addNewTransaction(wtx, rsp); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return rsp, nil
+	return rsp, wtx, nil
 }
 
 // RemoveTxByKey removes the transaction with the specified key from the

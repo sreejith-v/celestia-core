@@ -4,7 +4,8 @@ package tendermint.mempool;
 option go_package = "github.com/tendermint/tendermint/proto/tendermint/mempool";
 
 message Txs {
-  repeated bytes txs = 1;
+  repeated bytes txs     = 1;
+  uint64         valprio = 2;
 }
 
 message SeenTx {

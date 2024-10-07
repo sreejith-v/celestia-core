@@ -21,10 +21,10 @@ type wrappedTx struct {
 	evictable bool        // whether this transaction can be evicted from the mempool. This is false when the transaction is a part of a proposed block nolint:lll
 
 	seenCount int
-	isBlob    bool
+	valPrio   uint64 // the validator where the tx originated from's priority
 }
 
-func newWrappedTx(tx types.Tx, key types.TxKey, height, gasWanted, priority int64, sender string, isBlob bool) *wrappedTx {
+func newWrappedTx(tx types.Tx, key types.TxKey, height, gasWanted, priority int64, sender string, valPrio uint64) *wrappedTx {
 	return &wrappedTx{
 		tx:        tx,
 		key:       key,
@@ -34,9 +34,14 @@ func newWrappedTx(tx types.Tx, key types.TxKey, height, gasWanted, priority int6
 		priority:  priority,
 		sender:    sender,
 		evictable: true,
-		isBlob:    isBlob,
+		valPrio:   valPrio,
 	}
 }
 
 // Size reports the size of the raw transaction in bytes.
 func (w *wrappedTx) size() int64 { return int64(len(w.tx)) }
+
+func (w *wrappedTx) LessThan(b Ordered) bool {
+	bb := b.(*wrappedTx)
+	return w.valPrio < bb.valPrio
+}

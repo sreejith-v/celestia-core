@@ -1,8 +1,10 @@
 package cat
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -46,6 +48,7 @@ type Reactor struct {
 	traceClient  trace.Tracer
 	self         p2p.ID
 	wantState    *wantState
+	txPrio       *TxPrioritizor
 }
 
 type ReactorOptions struct {
@@ -96,6 +99,7 @@ func NewReactor(mempool *TxPool, opts *ReactorOptions) (*Reactor, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	memR := &Reactor{
 		opts:         opts,
 		mempool:      mempool,
@@ -104,6 +108,7 @@ func NewReactor(mempool *TxPool, opts *ReactorOptions) (*Reactor, error) {
 		blockFetcher: newBlockFetcher(),
 		traceClient:  opts.TraceClient,
 		wantState:    NewWantState(),
+		txPrio:       NewTxPrioritizor(mempool.logger, opts.TraceClient),
 	}
 	memR.self = opts.Self
 	memR.BaseReactor = *p2p.NewBaseReactor("Mempool", memR)
@@ -166,7 +171,7 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 	largestTx := make([]byte, memR.opts.MaxTxSize)
 	txMsg := protomem.Message{
 		Sum: &protomem.Message_Txs{
-			Txs: &protomem.Txs{Txs: [][]byte{largestTx}},
+			Txs: &protomem.Txs{Txs: [][]byte{largestTx}, Valprio: math.MaxUint64},
 		},
 	}
 
@@ -183,7 +188,7 @@ func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 		{
 			ID:                  mempool.MempoolChannel,
 			Priority:            9,
-			SendQueueCapacity:   5000,
+			SendQueueCapacity:   2,
 			RecvMessageCapacity: txMsg.Size(),
 			MessageType:         &protomem.Message{},
 		},
@@ -205,6 +210,7 @@ func (memR *Reactor) InitPeer(peer p2p.Peer) p2p.Peer {
 
 // AddPeer broadcasts all the transactions that this node has seen
 func (memR *Reactor) AddPeer(peer p2p.Peer) {
+	memR.txPrio.AddPeer(peer)
 	keys := memR.mempool.store.getAllKeys()
 	for _, key := range keys {
 		// memR.broadcastSeenTx(key, string(memR.self))
@@ -237,11 +243,12 @@ func (memR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	for key := range outboundRequests {
 		memR.findNewPeerToRequestTx(key, 7)
 	}
-	n := peerCount.Add(-1)
-	if n < 0 {
-		memR.Logger.Error("seen req went below one, resetting")
-		peerCount.Store(0)
-	}
+
+	memR.txPrio.RemovePeer(peer.ID())
+}
+
+func (memR *Reactor) FeedPeer(ctx context.Context, peer p2p.Peer) {
+
 }
 
 func (memR *Reactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
@@ -306,7 +313,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			memR.blockFetcher.TryAddMissingTx(key, tx)
 
 			// Now attempt to add the tx to the mempool.
-			rsp, err := memR.mempool.TryAddNewTx(ntx, key, txInfo, isBlobTx)
+			rsp, wtx, err := memR.mempool.TryAddNewTx(ntx, key, txInfo, msg.Valprio)
 			if err != nil || rsp.Code != abci.CodeTypeOK {
 				memR.Logger.Error("Could not add tx from peer", "peerID", peerID, "txKey", key, "err", err)
 				// We broadcast only transactions that we deem valid and actually have in our mempool.
@@ -320,7 +327,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 
 			memR.broadcastSeenTx(key, string(memR.self))
 
-			go memR.ClearWant(key, tx)
+			go memR.ClearWant(key, wtx)
 		}
 
 	// A peer has indicated to us that it has a transaction. We first verify the txkey and
@@ -391,26 +398,12 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			schema.Download,
 			"",
 		)
-		tx, has := memR.mempool.GetTxByKey(txKey)
+		wtx, has := memR.mempool.GetWrappedTxByKey(txKey)
 		// TODO: consider handling the case where we receive a HasTx message from a peer
 		// before we receive a WantTx message from them. In this case we might
 		// ignore the request if we know it's no longer valid.
 		if has {
-			// peerID := memR.ids.GetIDForPeer(e.Src.ID())
-			// memR.Logger.Debug("sending a transaction in response to a want msg", "peer", peerID, "txKey", txKey)
-			if p2p.SendEnvelopeShim(e.Src, p2p.Envelope{ //nolint:staticcheck
-				ChannelID: mempool.MempoolChannel,
-				Message:   &protomem.Txs{Txs: [][]byte{tx}},
-			}, memR.Logger) {
-				// memR.mempool.PeerHasTx(peerID, txKey)
-				schema.WriteMempoolTx(
-					memR.traceClient,
-					string(e.Src.ID()),
-					txKey[:],
-					len(tx),
-					schema.Upload,
-				)
-			}
+			memR.txPrio.Send(e.Src, wtx)
 		} else {
 			if !memR.mempool.IsRejectedTx(txKey) && !memR.mempool.store.hasCommitted(txKey) {
 				memR.ids.mtx.RLock()
@@ -435,13 +428,14 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 func (memR *Reactor) PeriodicallyClearWants(dur time.Duration) {
 	for {
 		for _, tx := range memR.mempool.GetAllTxs() {
-			memR.ClearWant(tx.key, tx.tx)
+			memR.ClearWant(tx.key, tx)
 		}
 		time.Sleep(dur)
 	}
 }
 
-func (memR *Reactor) ClearWant(key types.TxKey, tx types.Tx) {
+// TODO: this is really bad for sending the same tx to the same peer multiple times due to read
+func (memR *Reactor) ClearWant(key types.TxKey, wtx *wrappedTx) {
 	wants, has := memR.wantState.GetWants(key)
 	if has {
 		for peer := range wants {
@@ -450,23 +444,13 @@ func (memR *Reactor) ClearWant(key types.TxKey, tx types.Tx) {
 			if !has || p == nil {
 				continue
 			}
-			if p2p.SendEnvelopeShim(p, p2p.Envelope{ //nolint:staticcheck
-				ChannelID: mempool.MempoolChannel,
-				Message:   &protomem.Txs{Txs: [][]byte{tx}},
-			}, memR.Logger) {
-				// memR.mempool.PeerHasTx(peerID, txKey)
-				err := memR.wantState.Delete(key, peer)
-				if err != nil {
-					fmt.Println("faaaaaack", err)
-				}
-				schema.WriteMempoolTx(
-					memR.traceClient,
-					string(p.ID()),
-					key[:],
-					len(tx),
-					schema.UploadClear,
-				)
+			err := memR.wantState.Delete(key, peer)
+			if err != nil {
+				// hack hack !! we've already sent this tx in a different call
+				// so just continue
+				continue
 			}
+			memR.txPrio.Send(p, wtx)
 		}
 	}
 }
@@ -524,10 +508,12 @@ func (memR *Reactor) broadcastNewTx(wtx *wrappedTx) {
 	msg := &protomem.Message{
 		Sum: &protomem.Message_Txs{
 			Txs: &protomem.Txs{
-				Txs: [][]byte{wtx.tx},
+				Txs:     [][]byte{wtx.tx},
+				Valprio: memR.mempool.valPrio.Load(),
 			},
 		},
 	}
+	memR.mempool.valPrio.Add(1)
 	bz, err := msg.Marshal()
 	if err != nil {
 		panic(err)

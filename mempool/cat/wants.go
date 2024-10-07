@@ -41,11 +41,11 @@ func (f *wantState) Delete(tx types.TxKey, peer p2p.ID) error {
 	defer f.mtx.Unlock()
 	ws, has := f.wants[tx]
 	if !has {
-		return fmt.Errorf("no wants for transaction found", peer, tx.String())
+		return fmt.Errorf("no wants for transaction found: %v %v", peer, tx.String())
 	}
 	_, has = ws[peer]
 	if !has {
-		return fmt.Errorf("peer didn't want the transaction", peer, tx.String())
+		return fmt.Errorf("peer didn't want the transaction %v %v", peer, tx.String())
 	}
 	delete(ws, peer)
 	f.wants[tx] = ws

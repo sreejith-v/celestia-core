@@ -69,7 +69,7 @@ func TxKeyFromBytes(bz []byte) (TxKey, error) {
 		return TxKey{}, fmt.Errorf("incorrect tx key size. Expected %d bytes, got %d", TxKeySize, len(bz))
 	}
 	if bytes.Equal(bz, empty) {
-		return TxKey{}, fmt.Errorf("empty tx key")
+		return TxKey{}, fmt.Errorf("empty tx key. Expected %d bytes, got %d", TxKeySize, len(bz))
 	}
 	var key TxKey
 	copy(key[:], bz)
