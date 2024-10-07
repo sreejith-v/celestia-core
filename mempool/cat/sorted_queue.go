@@ -58,7 +58,7 @@ func (tp *TxPrioritizor) AddPeer(peer p2p.Peer) {
 			case <-sq.ready:
 				otx, has := sq.Pop()
 				if !has || otx == nil {
-					panic("nil tx popped when we were supposed to have txs to send")
+					// panic("nil tx popped when we were supposed to have txs to send")
 				}
 
 				wtx := otx.(*wrappedTx) // btw, this is only required cause the heap package doesn't yet use generics

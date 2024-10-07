@@ -353,7 +353,8 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			msg.Peer,
 		)
 		peerID := memR.ids.GetIDForPeer(p2p.ID(msg.Peer))
-		success := memR.mempool.PeerHasTx(peerID, txKey)
+
+		success, seen := memR.mempool.PeerHasTx(peerID, txKey)
 		// return as this peer has already seen this tx
 		if !success {
 			return
@@ -363,6 +364,7 @@ func (memR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			return
 		}
 
+		schema.WriteMempoolSeen(memR.traceClient, msg.TxKey, seen)
 		go memR.broadcastSeenTx(types.TxKey(msg.TxKey), msg.Peer)
 
 		// Check if we don't already have the transaction and that it was recently rejected

@@ -41,7 +41,30 @@ var (
 	// set the default to 5, but this value can be changed in an init func
 	InclusionDelay   = 5 * time.Second
 	defaultSeenLimit = 0
+	SeenLimit        = defaultSeenLimit
 )
+
+func init() {
+	sl := os.Getenv("SEEN_LIMIT")
+	if sl == "" {
+		return
+	}
+	parsed, err := strconv.ParseInt(sl, 10, 64)
+	if err != nil {
+		return
+	}
+	SeenLimit = int(parsed)
+
+	id := os.Getenv("INCLUSION_DELAY")
+	if id == "" {
+		return
+	}
+	idp, err := strconv.ParseInt(id, 10, 64)
+	if err != nil {
+		return
+	}
+	InclusionDelay = time.Second * time.Duration(idp)
+}
 
 // TxPoolOption sets an optional parameter on the TxPool.
 type TxPoolOption func(*TxPool)
@@ -453,10 +476,10 @@ func (txmp *TxPool) Flush() {
 }
 
 // PeerHasTx marks that the transaction has been seen by a peer.
-func (txmp *TxPool) PeerHasTx(peer uint16, txKey types.TxKey) bool {
-	success := txmp.seenByPeersSet.Add(txKey, peer)
+func (txmp *TxPool) PeerHasTx(peer uint16, txKey types.TxKey) (bool, int) {
+	success, seen := txmp.seenByPeersSet.Add(txKey, peer)
 	// txmp.logger.Info("peer has tx", "success", success, "peer", peer, "txKey", fmt.Sprintf("%X", txKey))
-	return success
+	return success, seen
 }
 
 // allEntriesSorted returns a slice of all the transactions currently in the
@@ -480,7 +503,7 @@ func (txmp *TxPool) seenEntries(seenLimit int) []*wrappedTx {
 	// Preallocate a slice to avoid reallocations
 	prunedTxs := make([]*wrappedTx, 0, len(txs))
 
-	// Prune transactions that don't exceed the seenLimit
+	// Prune transactions that exceed the seenLimit
 	for _, tx := range txs {
 		seen := txmp.seenByPeersSet.GetSeenCount(tx.key)
 		if seen >= seenLimit {
@@ -518,7 +541,7 @@ func (txmp *TxPool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) (types.Txs, []typ
 	var keep []types.Tx    //nolint:prealloc
 	var keys []types.TxKey //nolint:prealloc
 
-	for _, w := range txmp.seenEntries(getSeenLimit()) {
+	for _, w := range txmp.seenEntries(SeenLimit) {
 		// skip transactions that have been in the mempool for less than the inclusion delay
 		// This gives time for the transaction to be broadcast to all peers
 		// if currentTime.Sub(w.timestamp) < InclusionDelay {
@@ -566,18 +589,6 @@ func (txmp *TxPool) ReapMaxTxs(max int) types.Txs {
 		keep = append(keep, w.tx)
 	}
 	return keep
-}
-
-func getSeenLimit() int {
-	evar := os.Getenv("SEEN_LIMIT")
-	if evar == "" {
-		return defaultSeenLimit
-	}
-	parsed, err := strconv.ParseInt(evar, 10, 64)
-	if err != nil {
-		return defaultSeenLimit
-	}
-	return int(parsed)
 }
 
 // Update removes all the given transactions from the mempool and the cache,

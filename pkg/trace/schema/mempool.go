@@ -12,6 +12,8 @@ func MempoolTables() []string {
 		MempoolPeerStateTable,
 		MempoolRecoveryTable,
 		MempoolRejectedTable,
+		MempoolSizeTable,
+		MempoolSeenTable,
 	}
 }
 
@@ -193,8 +195,40 @@ func WriteMempoolSize(
 	size,
 	bytes int,
 ) {
+	if !client.IsCollecting(MempoolSizeTable) {
+		return
+	}
 	client.Write(MempoolSize{
 		Size:  size,
 		Bytes: bytes,
+	})
+}
+
+const (
+	MempoolSeenTable = "mempool_seen"
+)
+
+type MempoolSeen struct {
+	Tx    string `json:"tx"`
+	Count int    `json:"count"`
+}
+
+func (m MempoolSeen) Table() string {
+	return MempoolSeenTable
+}
+
+func WriteMempoolSeen(
+	client trace.Tracer,
+	txHash []byte,
+	count int,
+) {
+	// this check is redundant to what is checked during client.Write, although it
+	// is an optimization to avoid allocations from creating the map of fields.
+	if !client.IsCollecting(MempoolSeenTable) {
+		return
+	}
+	client.Write(MempoolSeen{
+		Tx:    bytes.HexBytes(txHash).String(),
+		Count: count,
 	})
 }
