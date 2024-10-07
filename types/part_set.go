@@ -65,11 +65,11 @@ func (part *Part) ToProto() (*cmtproto.Part, error) {
 		return nil, errors.New("nil part")
 	}
 	pb := new(cmtproto.Part)
-	proof := part.Proof.ToProto()
+	// proof := part.Proof.ToProto()
 
 	pb.Index = part.Index
 	pb.Bytes = part.Bytes
-	pb.Proof = *proof
+	// pb.Proof = *proof
 
 	return pb, nil
 }

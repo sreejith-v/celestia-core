@@ -430,6 +430,8 @@ func (memR *Reactor) PeriodicallyClearWants(dur time.Duration) {
 		for _, tx := range memR.mempool.GetAllTxs() {
 			memR.ClearWant(tx.key, tx)
 		}
+		// just added this here to avoid writing a new function that occasionally records this
+		schema.WriteMempoolSize(memR.traceClient, memR.mempool.Size(), int(memR.mempool.SizeBytes()))
 		time.Sleep(dur)
 	}
 }
@@ -446,8 +448,8 @@ func (memR *Reactor) ClearWant(key types.TxKey, wtx *wrappedTx) {
 			}
 			err := memR.wantState.Delete(key, peer)
 			if err != nil {
-				// hack hack !! we've already sent this tx in a different call
-				// so just continue
+				// we've already sent this tx in a different call
+				// so just continue and don't send
 				continue
 			}
 			memR.txPrio.Send(p, wtx)
@@ -578,6 +580,10 @@ func (memR *Reactor) requestTx(txKey types.TxKey, peer p2p.Peer, tries int) {
 // findNewPeerToSendTx finds a new peer that has already seen the transaction to
 // request a transaction from.
 func (memR *Reactor) findNewPeerToRequestTx(txKey types.TxKey, tries int) {
+	if memR.mempool.Has(txKey) {
+		return
+	}
+
 	if tries == 0 {
 		return
 	}

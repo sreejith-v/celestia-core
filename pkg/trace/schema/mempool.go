@@ -174,3 +174,27 @@ func WriteMempoolRejected(
 		Error:  errS,
 	})
 }
+
+const (
+	MempoolSizeTable = "mempool_size"
+)
+
+type MempoolSize struct {
+	Size  int `json:"size"`
+	Bytes int `json:"bytes"`
+}
+
+func (m MempoolSize) Table() string {
+	return MempoolSizeTable
+}
+
+func WriteMempoolSize(
+	client trace.Tracer,
+	size,
+	bytes int,
+) {
+	client.Write(MempoolSize{
+		Size:  size,
+		Bytes: bytes,
+	})
+}

@@ -12,7 +12,7 @@ import (
 )
 
 func TestStoreSimple(t *testing.T) {
-	store := newStore()
+	store := newStore(nil)
 
 	tx := types.Tx("tx1")
 	key := tx.Key()
@@ -43,7 +43,7 @@ func TestStoreSimple(t *testing.T) {
 }
 
 func TestStoreReservingTxs(t *testing.T) {
-	store := newStore()
+	store := newStore(nil)
 
 	tx := types.Tx("tx1")
 	key := tx.Key()
@@ -81,7 +81,7 @@ func TestStoreReservingTxs(t *testing.T) {
 }
 
 func TestReadReserved(t *testing.T) {
-	store := newStore()
+	store := newStore(nil)
 	tx := types.Tx("tx1")
 	store.reserve(tx.Key())
 
@@ -92,7 +92,7 @@ func TestReadReserved(t *testing.T) {
 }
 
 func TestStoreConcurrentAccess(t *testing.T) {
-	store := newStore()
+	store := newStore(nil)
 
 	numTxs := 100
 
@@ -132,7 +132,7 @@ func TestStoreConcurrentAccess(t *testing.T) {
 }
 
 func TestStoreGetTxs(t *testing.T) {
-	store := newStore()
+	store := newStore(nil)
 
 	numTxs := 100
 	for i := 0; i < numTxs; i++ {
@@ -163,7 +163,7 @@ func TestStoreGetTxs(t *testing.T) {
 }
 
 func TestStoreExpiredTxs(t *testing.T) {
-	store := newStore()
+	store := newStore(nil)
 	numTxs := 100
 	for i := 0; i < numTxs; i++ {
 		tx := types.Tx(fmt.Sprintf("tx%d", i))

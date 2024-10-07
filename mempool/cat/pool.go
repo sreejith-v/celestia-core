@@ -124,7 +124,7 @@ func NewTxPool(
 		height:           height,
 		preCheckFn:       func(_ types.Tx) error { return nil },
 		postCheckFn:      func(_ types.Tx, _ *abci.ResponseCheckTx) error { return nil },
-		store:            newStore(),
+		store:            newStore(logger),
 		broadcastCh:      make(chan *wrappedTx),
 		txsToBeBroadcast: make([]types.TxKey, 0),
 		valPrio:          atomic.Uint64{},
@@ -603,8 +603,7 @@ func (txmp *TxPool) Update(
 		panic(fmt.Sprintf("mempool: got %d transactions but %d DeliverTx responses",
 			len(blockHashes), len(deliverTxResponses)))
 	}
-	txmp.logger.Debug("updating mempool", "height", blockHeight, "txs", len(blockHashes))
-
+	txmp.logger.Info("updating mempool", "height", blockHeight, "txs", len(blockHashes), "size", txmp.Size(), "bytes", txmp.SizeBytes())
 	txmp.updateMtx.Lock()
 	txmp.height = blockHeight
 	txmp.notifiedTxsAvailable = false
