@@ -121,6 +121,15 @@ func NewSwitch(
 		traceClient:          trace.NoOpTracer(),
 	}
 
+	go func() {
+		for {
+			fmt.Println("=================================")
+			fmt.Println(sw.peers.list)
+			fmt.Println("=================================")
+			time.Sleep(5 * time.Second)
+		}
+	}()
+
 	// Ensure we have a completely undeterministic PRNG.
 	sw.rng = rand.NewRand()
 
@@ -363,12 +372,22 @@ func (sw *Switch) Peers() IPeerSet {
 // TODO: make record depending on reason.
 func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 	if !peer.IsRunning() {
+		fmt.Println("Peer is not running, so we won't stop it")
+		fmt.Println("Peer is not running, so we won't stop it")
+		fmt.Println("Peer is not running, so we won't stop it")
+		fmt.Println("Peer is not running, so we won't stop it")
+		fmt.Println("Peer is not running, so we won't stop it")
+		fmt.Println("Peer is not running, so we won't stop it")
+		fmt.Println("Peer is not running, so we won't stop it")
+		fmt.Println("Peer is not running, so we won't stop it")
+		fmt.Println("Peer is not running, so we won't stop it")
 		return
 	}
 
 	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", reason)
 	sw.stopAndRemovePeer(peer, reason)
 
+	time.Sleep(2 * time.Minute)
 	if peer.IsPersistent() {
 		addr, err := sw.getPeerAddress(peer)
 		if err != nil {
@@ -406,18 +425,21 @@ func (sw *Switch) getPeerAddress(peer Peer) (*NetAddress, error) {
 // StopPeerGracefully disconnects from a peer gracefully.
 // TODO: handle graceful disconnects.
 func (sw *Switch) StopPeerGracefully(peer Peer) {
-	sw.Logger.Info("Stopping peer gracefully")
+	sw.Logger.Error("Stopping peer gracefully")
 	sw.stopAndRemovePeer(peer, nil)
 }
 
 func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 	sw.transport.Cleanup(peer)
 	schema.WritePeerUpdate(sw.traceClient, string(peer.ID()), schema.PeerDisconnect, fmt.Sprintf("%v", reason))
+	sw.Logger.Error("entering stop and remove peer", "peer", peer.ID())
 	if err := peer.Stop(); err != nil {
 		sw.Logger.Error("error while stopping peer", "error", err) // TODO: should return error to be handled accordingly
 	}
 
+	sw.Logger.Error("after peer stopped", "peer", peer.ID())
 	for _, reactor := range sw.reactors {
+		sw.Logger.Error("stopping peer reactors", "peer", peer.ID(), "reactor", reactor)
 		reactor.RemovePeer(peer, reason)
 	}
 
@@ -425,6 +447,7 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 	// reconnect to our node and the switch calls InitPeer before
 	// RemovePeer is finished.
 	// https://github.com/tendermint/tendermint/issues/3338
+	sw.Logger.Error("after removing all reactors", "peer", peer.ID())
 	if sw.peers.Remove(peer) {
 		sw.metrics.Peers.Add(float64(-1))
 	} else {
@@ -432,6 +455,7 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 		// We keep this message here as information to the developer.
 		sw.Logger.Debug("error on peer removal", ",", "peer", peer.ID())
 	}
+	sw.Logger.Error("after removing peer from peers list", "peer", peer.ID())
 }
 
 // reconnectToPeer tries to reconnect to the addr, first repeatedly
@@ -450,7 +474,7 @@ func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 	defer sw.reconnecting.Delete(string(addr.ID))
 
 	start := time.Now()
-	sw.Logger.Info("Reconnecting to peer", "addr", addr)
+	sw.Logger.Error("Reconnecting to peer", "addr", addr)
 	for i := 0; i < reconnectAttempts; i++ {
 		if !sw.IsRunning() {
 			return
@@ -463,7 +487,7 @@ func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 			return
 		}
 
-		sw.Logger.Info("Error reconnecting to peer. Trying again", "tries", i, "err", err, "addr", addr)
+		sw.Logger.Error("Error reconnecting to peer. Trying again", "tries", i, "err", err, "addr", addr)
 		// sleep a set amount
 		sw.randomSleep(reconnectInterval)
 		continue
@@ -486,7 +510,7 @@ func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 		} else if _, ok := err.(ErrCurrentlyDialingOrExistingAddress); ok {
 			return
 		}
-		sw.Logger.Info("Error reconnecting to peer. Trying again", "tries", i, "err", err, "addr", addr)
+		sw.Logger.Error("Error reconnecting to peer. Trying again", "tries", i, "err", err, "addr", addr)
 	}
 	sw.Logger.Error("Failed to reconnect to peer. Giving up", "addr", addr, "elapsed", time.Since(start))
 }
@@ -624,7 +648,7 @@ func (sw *Switch) IsDialingOrExistingAddress(addr *NetAddress) bool {
 // ErrNetAddressLookup. However, if there are other errors, first encounter is
 // returned.
 func (sw *Switch) AddPersistentPeers(addrs []string) error {
-	sw.Logger.Info("Adding persistent peers", "addrs", addrs)
+	sw.Logger.Error("Adding persistent peers", "addrs", addrs)
 	netAddrs, errs := NewNetAddressStrings(addrs)
 	// report all the errors
 	for _, err := range errs {
@@ -642,7 +666,7 @@ func (sw *Switch) AddPersistentPeers(addrs []string) error {
 }
 
 func (sw *Switch) AddUnconditionalPeerIDs(ids []string) error {
-	sw.Logger.Info("Adding unconditional peer ids", "ids", ids)
+	sw.Logger.Error("Adding unconditional peer ids", "ids", ids)
 	for i, id := range ids {
 		err := validateID(ID(id))
 		if err != nil {
@@ -699,11 +723,39 @@ func (sw *Switch) acceptRoutine() {
 					sw.addrBook.AddOurAddress(&addr)
 				}
 
-				sw.Logger.Info(
+				sw.Logger.Error(
 					"Inbound Peer rejected",
 					"err", err,
 					"numPeers", sw.peers.Size(),
 				)
+
+				//go func() {
+				//	var psps Peer
+				//	for _, p := range sw.peers.List() {
+				//		fmt.Println(p)
+				//		if strings.Contains(err.conn.RemoteAddr().String(), p.SocketAddr().IP.String()) {
+				//			fmt.Println(p)
+				//			fmt.Println("breaking like a babbyyyyy")
+				//			psps = p
+				//			break
+				//		}
+				//	}
+				//	//psps := sw.peers.Get(err.Addr().ID)
+				//	fmt.Println("STIOOIUONPIIONG THE FOLLOWING PEEEERRRRR")
+				//	fmt.Println(psps)
+				//	fmt.Println(err)
+				//	sw.stopAndRemovePeer(psps, err)
+				//	// this removing the peer if its already connected but trying to reconnect.
+				//	// this will help with the nature of quic not caring about connection state
+				//	//if sw.peers.Remove(&peer{nodeInfo: DefaultNodeInfo{DefaultNodeID: err.id}}) {
+				//	//	sw.metrics.Peers.Add(float64(-1))
+				//	//}
+				//
+				//	//time.Sleep(30 * time.Second)
+				//	fmt.Println(psps)
+				//	fmt.Println(psps.SocketAddr())
+				//	sw.reconnectToPeer(psps.SocketAddr())
+				//}()
 
 				continue
 			case ErrFilterTimeout:
@@ -725,6 +777,7 @@ func (sw *Switch) acceptRoutine() {
 					"numPeers", sw.peers.Size(),
 				)
 				// We could instead have a retry loop around the acceptRoutine,
+
 				// but that would need to stop and let the node shutdown eventually.
 				// So might as well panic and let process managers restart the node.
 				// There's no point in letting the node run without the acceptRoutine,
@@ -739,7 +792,7 @@ func (sw *Switch) acceptRoutine() {
 			// Ignore connection if we already have enough peers.
 			_, in, _ := sw.NumPeers()
 			if in >= sw.config.MaxNumInboundPeers {
-				sw.Logger.Info(
+				sw.Logger.Error(
 					"Ignoring inbound connection: already have enough inbound peers",
 					"address", p.SocketAddr(),
 					"have", in,
@@ -758,7 +811,7 @@ func (sw *Switch) acceptRoutine() {
 			if p.IsRunning() {
 				_ = p.Stop()
 			}
-			sw.Logger.Info(
+			sw.Logger.Error(
 				"Ignoring inbound connection: error while adding peer",
 				"err", err,
 				"id", p.ID(),
@@ -906,6 +959,25 @@ func (sw *Switch) addPeer(p Peer) error {
 	}
 
 	sw.Logger.Debug("Added peer", "peer", p)
+
+	go func() {
+		fmt.Println("listening for connection to stop")
+		fmt.Println(p.ID())
+		fmt.Println(p.RemoteAddr().String())
+		fmt.Println("------------------------------------")
+		select {
+		case <-p.GetConnectionContext().Done():
+			fmt.Println("----------------------------- connection stopped, context cancelled")
+			fmt.Println(p.ID())
+			fmt.Println(p.RemoteAddr().String())
+			fmt.Println("------------------------------------")
+			err := p.Stop()
+			if err != nil {
+				fmt.Println(err)
+			}
+			sw.StopPeerForError(p, p.GetConnectionContext().Err())
+		}
+	}()
 
 	return nil
 }

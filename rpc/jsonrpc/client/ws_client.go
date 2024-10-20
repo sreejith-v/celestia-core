@@ -294,7 +294,7 @@ func (c *WSClient) reconnect() error {
 		//nolint:gosec
 		backoffDuration := jitter + ((1 << uint(attempt)) * time.Second)
 
-		c.Logger.Info("reconnecting", "attempt", attempt+1, "backoff_duration", backoffDuration)
+		c.Logger.Error("reconnecting", "attempt", attempt+1, "backoff_duration", backoffDuration)
 		time.Sleep(backoffDuration)
 
 		err := c.dial()

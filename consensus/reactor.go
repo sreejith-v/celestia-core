@@ -257,7 +257,7 @@ func (conR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		return
 	}
 
-	conR.Logger.Debug("Receive", "src", e.Src, "chId", e.ChannelID, "msg", msg)
+	//conR.Logger.Debug("Receive", "src", e.Src, "chId", e.ChannelID, "msg", msg)
 
 	// Get peer states
 	ps, ok := e.Src.Get(types.PeerStateKey).(*PeerState)
@@ -269,6 +269,7 @@ func (conR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 	case StateChannel:
 		switch msg := msg.(type) {
 		case *NewRoundStepMessage:
+			conR.Logger.Debug("Receive", "src", e.Src, "chId", e.ChannelID, "msg", msg)
 			conR.conS.mtx.Lock()
 			initialHeight := conR.conS.state.InitialHeight
 			conR.conS.mtx.Unlock()
@@ -288,6 +289,7 @@ func (conR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			}
 			ps.ApplyNewRoundStepMessage(msg)
 		case *NewValidBlockMessage:
+
 			schema.WriteConsensusState(
 				conR.traceClient,
 				msg.Height,
@@ -375,6 +377,7 @@ func (conR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		}
 		switch msg := msg.(type) {
 		case *ProposalMessage:
+			conR.Logger.Debug("Receive proposal msg", "src", e.Src, "chId", e.ChannelID, "msg", msg)
 			ps.SetHasProposal(msg.Proposal)
 			conR.conS.peerMsgQueue <- msgInfo{msg, e.Src.ID()}
 			schema.WriteProposal(
@@ -395,6 +398,7 @@ func (conR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 				schema.Download,
 			)
 		case *BlockPartMessage:
+			conR.Logger.Debug("Receive blockpart msg", "src", e.Src, "chId", e.ChannelID)
 			ps.SetHasProposalBlockPart(msg.Height, msg.Round, int(msg.Part.Index))
 			conR.Metrics.BlockParts.With("peer_id", string(e.Src.ID())).Add(1)
 			schema.WriteBlockPart(conR.traceClient, msg.Height, msg.Round, msg.Part.Index, false, string(e.Src.ID()), schema.Download)
@@ -410,6 +414,7 @@ func (conR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 		}
 		switch msg := msg.(type) {
 		case *VoteMessage:
+			conR.Logger.Debug("Receive vote msg", "src", e.Src, "chId", e.ChannelID, "msg", msg)
 			cs := conR.conS
 			cs.mtx.RLock()
 			height, round, valSize, lastCommitSize := cs.Height, cs.Round,
