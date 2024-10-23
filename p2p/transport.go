@@ -555,6 +555,8 @@ func handshake(
 		peerNodeInfo   DefaultNodeInfo
 		ourNodeInfo    = nodeInfo.(DefaultNodeInfo)
 	)
+	fmt.Println("our node info")
+	fmt.Println(ourNodeInfo)
 
 	go func(errc chan<- error, c net.Conn) {
 		_, err := protoio.NewDelimitedWriter(c).WriteMsg(ourNodeInfo.ToProto())
@@ -578,6 +580,8 @@ func handshake(
 		return nil, err
 	}
 
+	fmt.Println("peer node info")
+	fmt.Println(peerNodeInfo)
 	return peerNodeInfo, c.SetDeadline(time.Time{})
 }
 

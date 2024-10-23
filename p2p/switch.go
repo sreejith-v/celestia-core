@@ -132,6 +132,15 @@ func NewSwitch(
 		traceClient:          trace.NoOpTracer(),
 	}
 
+	go func() {
+		for {
+			fmt.Println("=================================")
+			fmt.Println(sw.peers.list)
+			fmt.Println("=================================")
+			time.Sleep(5 * time.Second)
+		}
+	}()
+
 	// Ensure we have a completely undeterministic PRNG.
 	sw.rng = rand.NewRand()
 
