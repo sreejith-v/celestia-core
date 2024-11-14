@@ -143,12 +143,15 @@ type MockReactor struct {
 	startTime               map[string]time.Time
 	cumulativeReceivedBytes map[string]int
 	speed                   map[string]float64
+	size                    atomic.Int64
 
 	tracer trace.Tracer
 }
 
 // NewMockReactor creates a new mock reactor.
 func NewMockReactor(channels []*conn.ChannelDescriptor, msgSizes []int) *MockReactor {
+	s := atomic.Int64{}
+	s.Store(200)
 	mr := &MockReactor{
 		channels:                channels,
 		peers:                   make(map[p2p.ID]p2p.Peer),
@@ -156,6 +159,7 @@ func NewMockReactor(channels []*conn.ChannelDescriptor, msgSizes []int) *MockRea
 		startTime:               map[string]time.Time{},
 		speed:                   map[string]float64{},
 		cumulativeReceivedBytes: map[string]int{},
+		size:                    s,
 	}
 	for i, ch := range channels {
 		mr.sizes[ch.ID] = msgSizes[i]
@@ -166,6 +170,10 @@ func NewMockReactor(channels []*conn.ChannelDescriptor, msgSizes []int) *MockRea
 
 func (mr *MockReactor) SetTracer(tracer trace.Tracer) {
 	mr.tracer = tracer
+}
+
+func (mr *MockReactor) IncreaseSize(s int64) {
+	mr.size.Store(s)
 }
 
 // GetChannels implements Reactor.
@@ -194,27 +202,20 @@ func (mr *MockReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	mr.Logger.Info("MockReactor removed a peer", "peer", peer.ID(), "reason", reason)
 }
 
+const mebibyte = 1_048_576
+
 func (mr *MockReactor) PrintReceiveSpeed() {
 	for _, peer := range mr.peers {
 		mr.mtx.Lock()
 		cumul := mr.cumulativeReceivedBytes[string(peer.ID())]
 		speed := mr.speed[string(peer.ID())]
 		mr.mtx.Unlock()
-		fmt.Printf("%s: %d bytes received in speed %.2f bytes/s\n", peer.ID(), cumul, speed)
+		fmt.Printf("%s: %d bytes received in speed %.2f mib/s\n", peer.ID(), cumul, speed/mebibyte)
 	}
 }
 
 // Receive implements Reactor.
 func (mr *MockReactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
-	fmt.Println("received something")
-	mr.mtx.Lock()
-	if _, ok := mr.startTime[string(peer.ID())]; !ok {
-		mr.startTime[string(peer.ID())] = time.Now()
-	}
-	mr.cumulativeReceivedBytes[string(peer.ID())] += len(msgBytes)
-	mr.speed[string(peer.ID())] = float64(mr.cumulativeReceivedBytes[string(peer.ID())]) / time.Now().Sub(mr.startTime[string(peer.ID())]).Seconds()
-	mr.mtx.Unlock()
-
 	msg := &protomem.Message{}
 	err := proto.Unmarshal(msgBytes, msg)
 	if err != nil {
@@ -241,51 +242,29 @@ type Payload struct {
 // ReceiveEnvelope implements Reactor.
 // It processes one of three messages: Txs, SeenTx, WantTx.
 func (mr *MockReactor) ReceiveEnvelope(e p2p.Envelope) {
-	size := 0
-	// Decode JSON bytes back to time.Time
-	var (
-		start time.Time
-		err   error
-	)
 	switch msg := e.Message.(type) {
 	case *protomem.TestTx:
-		size = len(msg.Tx)
-		start, err = time.Parse(time.RFC3339Nano, msg.StartTime)
+		mr.mtx.Lock()
+		if _, ok := mr.startTime[string(e.Src.ID())]; !ok {
+			mr.startTime[string(e.Src.ID())] = time.Now()
+		}
+		mr.cumulativeReceivedBytes[string(e.Src.ID())] += len(msg.Tx)
+		mr.speed[string(e.Src.ID())] = float64(mr.cumulativeReceivedBytes[string(e.Src.ID())]) / time.Now().Sub(mr.startTime[string(e.Src.ID())]).Seconds()
+		mr.mtx.Unlock()
 	default:
 		fmt.Printf("Unexpected message type %T\n", e.Message)
 		return
 	}
-	if err != nil {
-		fmt.Println("failure to parse time", err)
-		return
-	}
-
-	t := time.Now()
-
-	if t.Sub(start) > 1*time.Second {
-		fmt.Println("time difference is too large")
-	}
-
-	mr.received.Add(int64(size))
-
-	// transit := Transit{
-	// 	SendTime:    start,
-	// 	ReceiveTime: t,
-	// 	Size:        size,
-	// 	Channel:     e.ChannelID,
-	// }
-
-	// mr.tracer.Write(transit)
 }
 
-func (mr *MockReactor) SendBytes(id p2p.ID, chID byte, count int) bool {
+func (mr *MockReactor) SendBytes(id p2p.ID, chID byte) bool {
 	peer, has := mr.peers[id]
 	if !has {
 		mr.Logger.Error("Peer not found")
 		return false
 	}
 
-	b := make([]byte, count)
+	b := make([]byte, mr.size.Load())
 	_, err := rand.Read(b)
 	if err != nil {
 		mr.Logger.Error("Failed to generate random bytes")
@@ -303,7 +282,7 @@ func (mr *MockReactor) SendBytes(id p2p.ID, chID byte, count int) bool {
 func (mr *MockReactor) FillChannel(id p2p.ID, chID byte, count, msgSize int) (bool, int, time.Duration) {
 	start := time.Now()
 	for i := 0; i < count; i++ {
-		success := mr.SendBytes(id, chID, msgSize)
+		success := mr.SendBytes(id, chID)
 		if !success {
 			end := time.Now()
 			return success, i, end.Sub(start)
@@ -311,25 +290,6 @@ func (mr *MockReactor) FillChannel(id p2p.ID, chID byte, count, msgSize int) (bo
 	}
 	end := time.Now()
 	return true, count, end.Sub(start)
-}
-
-func (mr *MockReactor) DumpFloodChannel(wg *sync.WaitGroup, id p2p.ID, d, t time.Duration, chIDs ...byte) {
-	for _, chID := range chIDs {
-		wg.Add(1)
-		size := mr.sizes[chID]
-		go func(d time.Duration, chID byte, size int) {
-			start := time.Now()
-			defer wg.Done()
-			for time.Since(start) < t {
-				subStart := time.Now()
-				for time.Since(subStart) < d {
-					mr.SendBytes(id, chID, size)
-				}
-				time.Sleep(d)
-			}
-
-		}(d, chID, size)
-	}
 }
 
 func (mr *MockReactor) FloodChannel(wg *sync.WaitGroup, id p2p.ID, d time.Duration, chIDs ...byte) {
@@ -340,9 +300,8 @@ func (mr *MockReactor) FloodChannel(wg *sync.WaitGroup, id p2p.ID, d time.Durati
 			start := time.Now()
 			defer wg.Done()
 			for time.Since(start) < d {
-				mr.SendBytes(id, chID, size)
+				mr.SendBytes(id, chID)
 			}
-
 		}(d, chID, size)
 	}
 }
@@ -350,13 +309,5 @@ func (mr *MockReactor) FloodChannel(wg *sync.WaitGroup, id p2p.ID, d time.Durati
 func (mr *MockReactor) FloodAllPeers(wg *sync.WaitGroup, d time.Duration, chIDs ...byte) {
 	for _, peer := range mr.peers {
 		mr.FloodChannel(wg, peer.ID(), d, chIDs...)
-	}
-}
-
-func (mr *MockReactor) DumpFloodAllPeers(wg *sync.WaitGroup, d, t time.Duration, chIDs ...byte) {
-	counter := 0
-	for _, peer := range mr.peers {
-		mr.DumpFloodChannel(wg, peer.ID(), d, t, chIDs...)
-		counter++
 	}
 }

@@ -16,11 +16,11 @@ func TestMultipleConnections(t *testing.T) {
 	cfg.AllowDuplicateIP = true
 	cfg.DialTimeout = 10 * time.Second
 	mcfg := conn.DefaultMConnConfig()
-	mcfg.SendRate = 5000000
-	mcfg.RecvRate = 5000000
+	mcfg.SendRate = 10_000_000_0000
+	mcfg.RecvRate = 10_000_000_0000
 	mcfg.FlushThrottle = 100 * time.Millisecond
 
-	peerCount := 20
+	peerCount := 2
 	reactors := make([]*MockReactor, peerCount)
 	nodes := make([]*node, peerCount)
 
@@ -51,8 +51,9 @@ func TestMultipleConnections(t *testing.T) {
 			err := nodes[0].sw.DialPeerWithAddress(nodes[i].addr)
 			require.NoError(t, err)
 		}(i)
-
 	}
+
+	fmt.Println("-----------------------------")
 
 	wg.Wait()
 
@@ -61,26 +62,48 @@ func TestMultipleConnections(t *testing.T) {
 			for _, reactor := range reactors {
 				reactor.PrintReceiveSpeed()
 			}
+			fmt.Println("-----------------------------")
 			time.Sleep(5 * time.Second)
 		}
 	}()
 
 	for _, reactor := range reactors {
-		reactor.FloodAllPeers(&wg, time.Second*30,
+		reactor.FloodAllPeers(&wg,
+			time.Minute*60,
 			FirstChannel,
-			SecondChannel,
-			ThirdChannel,
-			FourthChannel,
-			FifthChannel,
-			SixthChannel,
-			SeventhChannel,
-			EighthChannel,
-			NinthChannel,
-			TenthChannel,
+			//SecondChannel,
+			//ThirdChannel,
+			//FourthChannel,
+			//FifthChannel,
+			//SixthChannel,
+			//SeventhChannel,
+			//EighthChannel,
+			//NinthChannel,
+			//TenthChannel,
 		)
 	}
 
-	wg.Wait()
+	for _, size := range []int64{
+		500,
+		1_000,
+		2_000,
+		5_000,
+		10_000,
+		50_000,
+		100_000,
+		500_000,
+		1_000_000,
+		10_000_000,
+		100_000_000,
+		1_000_000_000,
+	} {
+		for _, reactor := range reactors {
+			reactor.IncreaseSize(size)
+		}
+		fmt.Printf("increased size to %d bytes\n", size)
+		time.Sleep(10 * time.Second)
+	}
 
-	reactors[0]
+	wg.Wait()
+	time.Sleep(10 * time.Minute)
 }
