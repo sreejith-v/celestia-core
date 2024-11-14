@@ -137,9 +137,12 @@ type MockReactor struct {
 	channels []*conn.ChannelDescriptor
 	sizes    map[byte]int
 
-	mtx      sync.Mutex
-	peers    map[p2p.ID]p2p.Peer
-	received atomic.Int64
+	mtx                     sync.Mutex
+	peers                   map[p2p.ID]p2p.Peer
+	received                atomic.Int64
+	startTime               map[string]time.Time
+	cumulativeReceivedBytes map[string]int
+	speed                   map[string]float64
 
 	tracer trace.Tracer
 }
@@ -147,9 +150,12 @@ type MockReactor struct {
 // NewMockReactor creates a new mock reactor.
 func NewMockReactor(channels []*conn.ChannelDescriptor, msgSizes []int) *MockReactor {
 	mr := &MockReactor{
-		channels: channels,
-		peers:    make(map[p2p.ID]p2p.Peer),
-		sizes:    make(map[byte]int),
+		channels:                channels,
+		peers:                   make(map[p2p.ID]p2p.Peer),
+		sizes:                   make(map[byte]int),
+		startTime:               map[string]time.Time{},
+		speed:                   map[string]float64{},
+		cumulativeReceivedBytes: map[string]int{},
 	}
 	for i, ch := range channels {
 		mr.sizes[ch.ID] = msgSizes[i]
@@ -188,8 +194,27 @@ func (mr *MockReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	mr.Logger.Info("MockReactor removed a peer", "peer", peer.ID(), "reason", reason)
 }
 
+func (mr *MockReactor) PrintReceiveSpeed() {
+	for _, peer := range mr.peers {
+		mr.mtx.Lock()
+		cumul := mr.cumulativeReceivedBytes[string(peer.ID())]
+		speed := mr.speed[string(peer.ID())]
+		mr.mtx.Unlock()
+		fmt.Printf("%s: %d bytes received in speed %.2f bytes/s\n", peer.ID(), cumul, speed)
+	}
+}
+
 // Receive implements Reactor.
 func (mr *MockReactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
+	fmt.Println("received something")
+	mr.mtx.Lock()
+	if _, ok := mr.startTime[string(peer.ID())]; !ok {
+		mr.startTime[string(peer.ID())] = time.Now()
+	}
+	mr.cumulativeReceivedBytes[string(peer.ID())] += len(msgBytes)
+	mr.speed[string(peer.ID())] = float64(mr.cumulativeReceivedBytes[string(peer.ID())]) / time.Now().Sub(mr.startTime[string(peer.ID())]).Seconds()
+	mr.mtx.Unlock()
+
 	msg := &protomem.Message{}
 	err := proto.Unmarshal(msgBytes, msg)
 	if err != nil {

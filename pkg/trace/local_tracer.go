@@ -71,7 +71,7 @@ type LocalTracer struct {
 // save events is started in this function.
 func NewLocalTracer(cfg *config.Config, logger log.Logger, chainID, nodeID string) (*LocalTracer, error) {
 	fm := make(map[string]*bufferedFile)
-	p := path.Join("/home/evan/Downloads/traces", "local", chainID, nodeID)
+	p := path.Join("/tmp/traces", "local", chainID, nodeID)
 	for _, table := range splitAndTrimEmpty(cfg.Instrumentation.TracingTables, ",", " ") {
 		fileName := fmt.Sprintf("%s/%s.jsonl", p, table)
 		err := os.MkdirAll(p, 0700)

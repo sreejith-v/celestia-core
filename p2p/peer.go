@@ -65,6 +65,7 @@ type EnvelopeSender interface {
 //
 // Deprecated: Will be removed in v0.37.
 func SendEnvelopeShim(p Peer, e Envelope, lg log.Logger) bool {
+
 	if es, ok := p.(EnvelopeSender); ok {
 		return es.SendEnvelope(e)
 	}
@@ -77,6 +78,7 @@ func SendEnvelopeShim(p Peer, e Envelope, lg log.Logger) bool {
 		lg.Error("marshaling message to send", "error", err)
 		return false
 	}
+	fmt.Printf("sending %s: %d bytes", p.ID(), len(msgBytes))
 	return p.Send(e.ChannelID, msgBytes)
 }
 

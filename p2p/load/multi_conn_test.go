@@ -12,7 +12,6 @@ import (
 )
 
 func TestMultipleConnections(t *testing.T) {
-
 	cfg := config.DefaultP2PConfig()
 	cfg.AllowDuplicateIP = true
 	cfg.DialTimeout = 10 * time.Second
@@ -34,6 +33,7 @@ func TestMultipleConnections(t *testing.T) {
 
 		err = node.start()
 		require.NoError(t, err)
+		defer node.stop()
 
 		reactors[i] = reactor
 		nodes[i] = node
@@ -56,31 +56,31 @@ func TestMultipleConnections(t *testing.T) {
 
 	wg.Wait()
 
+	go func() {
+		for i := 0; i < 90; i++ {
+			for _, reactor := range reactors {
+				reactor.PrintReceiveSpeed()
+			}
+			time.Sleep(5 * time.Second)
+		}
+	}()
+
 	for _, reactor := range reactors {
 		reactor.FloodAllPeers(&wg, time.Second*30,
-			// FirstChannel,
-			// SecondChannel,
-			// ThirdChannel,
-			// FourthChannel,
-			// FifthChannel,
-			// SixthChannel,
+			FirstChannel,
+			SecondChannel,
+			ThirdChannel,
+			FourthChannel,
+			FifthChannel,
+			SixthChannel,
 			SeventhChannel,
 			EighthChannel,
 			NinthChannel,
-			// TenthChannel,
+			TenthChannel,
 		)
 	}
 
 	wg.Wait()
 
-	// time.Sleep(2 * time.Second) // wait for the messages to finish sending
-
-	for _, node := range nodes {
-		node.stop()
-	}
-
-	time.Sleep(2 * time.Second) // wait for the nodes to stop
-
-	// VizBandwidth("test.png", reactor2.Traces)
-	// VizTotalBandwidth("test2.png", reactors[0].Traces)
+	reactors[0]
 }
