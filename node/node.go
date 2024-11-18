@@ -640,11 +640,11 @@ func createSwitch(config *cfg.Config,
 		p2p.WithTracer(tracer),
 	)
 	sw.SetLogger(p2pLogger)
-	sw.AddReactor("MEMPOOL", mempoolReactor)
-	sw.AddReactor("BLOCKCHAIN", bcReactor)
-	sw.AddReactor("CONSENSUS", consensusReactor)
-	sw.AddReactor("EVIDENCE", evidenceReactor)
-	sw.AddReactor("STATESYNC", stateSyncReactor)
+	//sw.AddReactor("MEMPOOL", mempoolReactor)
+	//sw.AddReactor("BLOCKCHAIN", bcReactor)
+	//sw.AddReactor("CONSENSUS", consensusReactor)
+	//sw.AddReactor("EVIDENCE", evidenceReactor)
+	//sw.AddReactor("STATESYNC", stateSyncReactor)
 	sw.AddReactor("MOCK", mockReactor)
 
 	sw.SetNodeInfo(nodeInfo)
@@ -956,7 +956,7 @@ func NewNodeWithContext(ctx context.Context,
 	// Setup Transport.
 	transport, peerFilters := createTransport(config, nodeInfo, nodeKey, proxyApp, tracer)
 
-	mockReactor := load.NewMockReactor(load.DefaultTestChannels, 100)
+	mockReactor := load.NewMockReactor(load.DefaultTestChannels, 12345)
 	mockReactor.SetLogger(logger.With("module", "mock"))
 
 	go func() {
