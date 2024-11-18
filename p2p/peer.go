@@ -344,7 +344,9 @@ func (p *peer) SendEnvelope(e Envelope) bool {
 	if !p.IsRunning() {
 		return false
 	} else if !p.hasChannel(e.ChannelID) {
-		return false
+		if e.ChannelID != byte(0x01) {
+			return false
+		}
 	}
 	msg := e.Message
 	metricLabelValue := p.mlc.ValueToMetricLabel(msg)
@@ -375,7 +377,9 @@ func (p *peer) Send(chID byte, msgBytes []byte) bool {
 	if !p.IsRunning() {
 		return false
 	} else if !p.hasChannel(chID) {
-		return false
+		if chID != byte(0x01) {
+			return false
+		}
 	}
 	res := p.mconn.Send(chID, msgBytes)
 	if res {
