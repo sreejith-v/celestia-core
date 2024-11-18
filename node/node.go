@@ -957,11 +957,12 @@ func NewNodeWithContext(ctx context.Context,
 	transport, peerFilters := createTransport(config, nodeInfo, nodeKey, proxyApp, tracer)
 
 	mockReactor := load.NewMockReactor(load.DefaultTestChannels, 100)
+	mockReactor.SetLogger(logger.With("module", "mock"))
 
 	go func() {
 		for {
 			time.Sleep(10 * time.Second)
-			mockReactor.PrintReceiveSpeed(logger)
+			mockReactor.PrintReceiveSpeed()
 		}
 	}()
 

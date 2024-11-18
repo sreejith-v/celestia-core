@@ -3,7 +3,6 @@ package load
 import (
 	"crypto/rand"
 	"fmt"
-	"github.com/tendermint/tendermint/libs/log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -200,16 +199,16 @@ func (mr *MockReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 
 const mebibyte = 1_048_576
 
-func (mr *MockReactor) PrintReceiveSpeed(logger log.Logger) {
+func (mr *MockReactor) PrintReceiveSpeed() {
 	for _, peer := range mr.peers {
 		mr.mtx.Lock()
 		cumul := mr.cumulativeReceivedBytes[string(peer.ID())]
 		speed := mr.speed[string(peer.ID())]
 		mr.mtx.Unlock()
 		//fmt.Println(fmt.Sprintf("%s: %d bytes received in speed %.2f mib/s\n", peer.ID(), cumul, speed/mebibyte))
-		logger.Error("benchmark results", "peer", peer.ID(), "cumulativeReceivedBytes", cumul, "speed", speed)
+		mr.Logger.Error("benchmark results", "peer", peer.ID(), "cumulativeReceivedBytes", cumul, "speed", speed)
 	}
-	logger.Error("----------------------------------")
+	mr.Logger.Error("----------------------------------")
 }
 
 // Receive implements Reactor.
