@@ -245,7 +245,6 @@ type Payload struct {
 // ReceiveEnvelope implements Reactor.
 // It processes one of three messages: Txs, SeenTx, WantTx.
 func (mr *MockReactor) ReceiveEnvelope(e p2p.Envelope) {
-	mr.Logger.Error("mock reactor received envelope")
 	switch msg := e.Message.(type) {
 	case *protomem.TestTx:
 		mr.mtx.Lock()
