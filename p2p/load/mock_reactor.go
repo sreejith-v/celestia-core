@@ -240,6 +240,7 @@ type Payload struct {
 // ReceiveEnvelope implements Reactor.
 // It processes one of three messages: Txs, SeenTx, WantTx.
 func (mr *MockReactor) ReceiveEnvelope(e p2p.Envelope) {
+	mr.Logger.Error("mock reactor received envelope")
 	switch msg := e.Message.(type) {
 	case *protomem.TestTx:
 		mr.mtx.Lock()
@@ -295,6 +296,7 @@ func (mr *MockReactor) FloodChannel(id p2p.ID, d time.Duration, chIDs ...byte) {
 		go func(d time.Duration, chID byte) {
 			start := time.Now()
 			for time.Since(start) < d {
+				mr.Logger.Error("sending data to peer", "peer", id)
 				mr.SendBytes(id, chID)
 			}
 		}(d, chID)
@@ -303,6 +305,7 @@ func (mr *MockReactor) FloodChannel(id p2p.ID, d time.Duration, chIDs ...byte) {
 
 func (mr *MockReactor) FloodAllPeers(d time.Duration, chIDs ...byte) {
 	for _, peer := range mr.peers {
+		mr.Logger.Error("flooding peer", "peer", peer.ID())
 		mr.FloodChannel(peer.ID(), d, chIDs...)
 	}
 }
