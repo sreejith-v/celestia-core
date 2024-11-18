@@ -956,7 +956,7 @@ func NewNodeWithContext(ctx context.Context,
 	// Setup Transport.
 	transport, peerFilters := createTransport(config, nodeInfo, nodeKey, proxyApp, tracer)
 
-	mockReactor := load.NewMockReactor(load.DefaultTestChannels, 12345)
+	mockReactor := load.NewMockReactor(load.DefaultTestChannels, 100)
 	mockReactor.SetLogger(logger.With("module", "mock"))
 
 	go func() {
@@ -969,18 +969,7 @@ func NewNodeWithContext(ctx context.Context,
 	go func() {
 		time.Sleep(10 * time.Second)
 		for {
-			mockReactor.FloodAllPeers(10*time.Minute,
-				load.FirstChannel,
-				load.SecondChannel,
-				load.ThirdChannel,
-				load.FourthChannel,
-				load.FifthChannel,
-				load.SixthChannel,
-				load.SeventhChannel,
-				load.EighthChannel,
-				load.NinthChannel,
-				load.TenthChannel,
-			)
+			mockReactor.FloodAllPeers(10*time.Minute, load.FirstChannel)
 		}
 	}()
 

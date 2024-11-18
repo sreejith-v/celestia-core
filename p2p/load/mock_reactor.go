@@ -273,9 +273,9 @@ func (mr *MockReactor) SendBytes(id p2p.ID, chID byte) bool {
 		mr.Logger.Error("Failed to generate random bytes")
 		return false
 	}
-	if chID == byte(0x01) {
-		fmt.Printf("hheheh")
-	}
+	//if chID == byte(0x01) {
+	//	fmt.Printf("hheheh")
+	//}
 
 	txs := &protomem.TestTx{StartTime: time.Now().Format(time.RFC3339Nano), Tx: b}
 	return p2p.SendEnvelopeShim(peer, p2p.Envelope{
@@ -303,10 +303,7 @@ func (mr *MockReactor) FloodChannel(id p2p.ID, d time.Duration, chIDs ...byte) {
 		go func(d time.Duration, chID byte) {
 			start := time.Now()
 			for time.Since(start) < d {
-				sucess := mr.SendBytes(id, chID)
-				if sucess {
-					mr.Logger.Error("success")
-				}
+				mr.SendBytes(id, chID)
 			}
 		}(d, chID)
 	}
@@ -315,6 +312,5 @@ func (mr *MockReactor) FloodChannel(id p2p.ID, d time.Duration, chIDs ...byte) {
 func (mr *MockReactor) FloodAllPeers(d time.Duration, chIDs ...byte) {
 	for _, peer := range mr.peers {
 		mr.FloodChannel(peer.ID(), d, chIDs...)
-		break
 	}
 }
