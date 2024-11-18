@@ -301,7 +301,10 @@ func (mr *MockReactor) FloodChannel(id p2p.ID, d time.Duration, chIDs ...byte) {
 		go func(d time.Duration, chID byte) {
 			start := time.Now()
 			for time.Since(start) < d {
-				mr.SendBytes(id, chID)
+				sucess := mr.SendBytes(id, chID)
+				if !sucess {
+					mr.Logger.Error("failed to send bytes")
+				}
 			}
 		}(d, chID)
 	}
@@ -309,7 +312,6 @@ func (mr *MockReactor) FloodChannel(id p2p.ID, d time.Duration, chIDs ...byte) {
 
 func (mr *MockReactor) FloodAllPeers(d time.Duration, chIDs ...byte) {
 	for _, peer := range mr.peers {
-		mr.Logger.Error("flooding peer", "peer", peer.ID())
 		mr.FloodChannel(peer.ID(), d, chIDs...)
 	}
 }
