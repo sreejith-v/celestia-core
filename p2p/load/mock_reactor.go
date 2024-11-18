@@ -39,9 +39,9 @@ var DefaultTestChannels = []*p2p.ChannelDescriptor{
 	{
 		ID:                  FirstChannel,
 		Priority:            1,
-		SendQueueCapacity:   1,
-		RecvBufferCapacity:  100,
-		RecvMessageCapacity: 2000000,
+		SendQueueCapacity:   1000,
+		RecvBufferCapacity:  100000,
+		RecvMessageCapacity: 20000000000,
 		MessageType:         &protomem.TestTx{},
 	},
 	//{
@@ -205,8 +205,8 @@ func (mr *MockReactor) PrintReceiveSpeed() {
 		cumul := mr.cumulativeReceivedBytes[string(peer.ID())]
 		speed := mr.speed[string(peer.ID())]
 		mr.mtx.Unlock()
-		//fmt.Println(fmt.Sprintf("%s: %d bytes received in speed %.2f mib/s\n", peer.ID(), cumul, speed/mebibyte))
-		mr.Logger.Error("benchmark results", "peer", peer.ID(), "cumulativeReceivedBytes", cumul, "speed", speed)
+		fmt.Println(fmt.Sprintf("%s: %d bytes received in speed %.2f mib/s\n", peer.ID(), cumul, speed/mebibyte))
+		//mr.Logger.Error("benchmark results", "peer", peer.ID(), "cumulativeReceivedBytes", cumul, "speed", speed)
 	}
 	mr.Logger.Error("----------------------------------")
 }
@@ -217,16 +217,10 @@ func (mr *MockReactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
 	err := proto.Unmarshal(msgBytes, msg)
 	if err != nil {
 		mr.Logger.Error("failure to unmarshal")
-		mr.Logger.Error("failure to unmarshal")
-		mr.Logger.Error("failure to unmarshal")
-		mr.Logger.Error("failure to unmarshal")
 		// panic(err)
 	}
 	uw, err := msg.Unwrap()
 	if err != nil {
-		mr.Logger.Error("failure to unwrap")
-		mr.Logger.Error("failure to unwrap")
-		mr.Logger.Error("failure to unwrap")
 		mr.Logger.Error("failure to unwrap")
 		// panic(err)
 	}

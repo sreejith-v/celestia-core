@@ -69,9 +69,9 @@ type EnvelopeSender interface {
 func SendEnvelopeShim(p Peer, e Envelope, lg log.Logger) bool {
 
 	if es, ok := p.(EnvelopeSender); ok {
-		if e.ChannelID == byte(0x01) {
-			fmt.Printf("111111111")
-		}
+		//if e.ChannelID == byte(0x01) {
+		//	fmt.Printf("111111111")
+		//}
 		return es.SendEnvelope(e)
 	}
 	msg := e.Message
