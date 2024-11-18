@@ -216,12 +216,18 @@ func (mr *MockReactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
 	msg := &protomem.Message{}
 	err := proto.Unmarshal(msgBytes, msg)
 	if err != nil {
-		fmt.Println("failure to unmarshal")
+		mr.Logger.Error("failure to unmarshal")
+		mr.Logger.Error("failure to unmarshal")
+		mr.Logger.Error("failure to unmarshal")
+		mr.Logger.Error("failure to unmarshal")
 		// panic(err)
 	}
 	uw, err := msg.Unwrap()
 	if err != nil {
-		fmt.Println("failure to unwrap")
+		mr.Logger.Error("failure to unwrap")
+		mr.Logger.Error("failure to unwrap")
+		mr.Logger.Error("failure to unwrap")
+		mr.Logger.Error("failure to unwrap")
 		// panic(err)
 	}
 	mr.ReceiveEnvelope(p2p.Envelope{
