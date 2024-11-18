@@ -205,7 +205,8 @@ func (mr *MockReactor) PrintReceiveSpeed() {
 		cumul := mr.cumulativeReceivedBytes[string(peer.ID())]
 		speed := mr.speed[string(peer.ID())]
 		mr.mtx.Unlock()
-		fmt.Printf("%s: %d bytes received in speed %.2f mib/s\n", peer.ID(), cumul, speed/mebibyte)
+		//fmt.Println(fmt.Sprintf("%s: %d bytes received in speed %.2f mib/s\n", peer.ID(), cumul, speed/mebibyte))
+		mr.Logger.Info("benchmark results", "peer", peer.ID(), "cumulativeReceivedBytes", cumul, "speed", speed)
 	}
 }
 
