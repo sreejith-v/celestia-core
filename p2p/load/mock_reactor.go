@@ -30,12 +30,12 @@ const (
 var priorities = make(map[byte]int)
 
 func init() {
-	for _, ch := range defaultTestChannels {
+	for _, ch := range DefaultTestChannels {
 		priorities[ch.ID] = ch.Priority
 	}
 }
 
-var defaultTestChannels = []*p2p.ChannelDescriptor{
+var DefaultTestChannels = []*p2p.ChannelDescriptor{
 	{
 		ID:                  FirstChannel,
 		Priority:            1,
@@ -135,7 +135,6 @@ var defaultMsgSizes = []int{
 type MockReactor struct {
 	p2p.BaseReactor
 	channels []*conn.ChannelDescriptor
-	sizes    map[byte]int
 
 	mtx                     sync.Mutex
 	peers                   map[p2p.ID]p2p.Peer
@@ -149,20 +148,16 @@ type MockReactor struct {
 }
 
 // NewMockReactor creates a new mock reactor.
-func NewMockReactor(channels []*conn.ChannelDescriptor, msgSizes []int) *MockReactor {
+func NewMockReactor(channels []*conn.ChannelDescriptor, msgSize int) *MockReactor {
 	s := atomic.Int64{}
-	s.Store(200)
+	s.Store(int64(msgSize))
 	mr := &MockReactor{
 		channels:                channels,
 		peers:                   make(map[p2p.ID]p2p.Peer),
-		sizes:                   make(map[byte]int),
 		startTime:               map[string]time.Time{},
 		speed:                   map[string]float64{},
 		cumulativeReceivedBytes: map[string]int{},
 		size:                    s,
-	}
-	for i, ch := range channels {
-		mr.sizes[ch.ID] = msgSizes[i]
 	}
 	mr.BaseReactor = *p2p.NewBaseReactor("MockReactor", mr)
 	return mr
@@ -292,22 +287,19 @@ func (mr *MockReactor) FillChannel(id p2p.ID, chID byte, count, msgSize int) (bo
 	return true, count, end.Sub(start)
 }
 
-func (mr *MockReactor) FloodChannel(wg *sync.WaitGroup, id p2p.ID, d time.Duration, chIDs ...byte) {
+func (mr *MockReactor) FloodChannel(id p2p.ID, d time.Duration, chIDs ...byte) {
 	for _, chID := range chIDs {
-		wg.Add(1)
-		size := mr.sizes[chID]
-		go func(d time.Duration, chID byte, size int) {
+		go func(d time.Duration, chID byte) {
 			start := time.Now()
-			defer wg.Done()
 			for time.Since(start) < d {
 				mr.SendBytes(id, chID)
 			}
-		}(d, chID, size)
+		}(d, chID)
 	}
 }
 
-func (mr *MockReactor) FloodAllPeers(wg *sync.WaitGroup, d time.Duration, chIDs ...byte) {
+func (mr *MockReactor) FloodAllPeers(d time.Duration, chIDs ...byte) {
 	for _, peer := range mr.peers {
-		mr.FloodChannel(wg, peer.ID(), d, chIDs...)
+		mr.FloodChannel(peer.ID(), d, chIDs...)
 	}
 }

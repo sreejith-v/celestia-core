@@ -36,11 +36,11 @@ func TestTransportBench(t *testing.T) {
 	mcfg.SendRate = 50000
 	mcfg.RecvRate = 50000
 
-	reactor1 := NewMockReactor(defaultTestChannels, defaultMsgSizes)
+	reactor1 := NewMockReactor(DefaultTestChannels, defaultMsgSizes)
 	node1, err := newnode(*cfg, mcfg, "test", reactor1)
 	require.NoError(t, err)
 
-	reactor2 := NewMockReactor(defaultTestChannels, defaultMsgSizes)
+	reactor2 := NewMockReactor(DefaultTestChannels, defaultMsgSizes)
 	node2, err := newnode(*cfg, mcfg, "test", reactor2)
 	require.NoError(t, err)
 

@@ -27,7 +27,7 @@ func TestMultipleConnections(t *testing.T) {
 	chainID := "base-30"
 
 	for i := 0; i < peerCount; i++ {
-		reactor := NewMockReactor(defaultTestChannels, defaultMsgSizes)
+		reactor := NewMockReactor(DefaultTestChannels, defaultMsgSizes)
 		node, err := newnode(*cfg, mcfg, chainID, reactor)
 		require.NoError(t, err)
 
@@ -84,14 +84,14 @@ func TestMultipleConnections(t *testing.T) {
 	}
 
 	for _, size := range []int64{
-		500,
-		1_000,
-		2_000,
-		5_000,
-		10_000,
-		50_000,
-		100_000,
-		500_000,
+		//500,
+		//1_000,
+		//2_000,
+		//5_000,
+		//10_000,
+		//50_000,
+		//100_000,
+		//500_000,
 		1_000_000,
 		10_000_000,
 		100_000_000,
