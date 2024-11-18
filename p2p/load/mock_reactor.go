@@ -209,6 +209,7 @@ func (mr *MockReactor) PrintReceiveSpeed(logger log.Logger) {
 		//fmt.Println(fmt.Sprintf("%s: %d bytes received in speed %.2f mib/s\n", peer.ID(), cumul, speed/mebibyte))
 		logger.Error("benchmark results", "peer", peer.ID(), "cumulativeReceivedBytes", cumul, "speed", speed)
 	}
+	logger.Error("----------------------------------")
 }
 
 // Receive implements Reactor.

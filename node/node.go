@@ -966,18 +966,21 @@ func NewNodeWithContext(ctx context.Context,
 	}()
 
 	go func() {
-		mockReactor.FloodAllPeers(10*time.Minute,
-			load.FirstChannel,
-			load.SecondChannel,
-			load.ThirdChannel,
-			load.FourthChannel,
-			load.FifthChannel,
-			load.SixthChannel,
-			load.SeventhChannel,
-			load.EighthChannel,
-			load.NinthChannel,
-			load.TenthChannel,
-		)
+		time.Sleep(10 * time.Second)
+		for {
+			mockReactor.FloodAllPeers(10*time.Minute,
+				load.FirstChannel,
+				load.SecondChannel,
+				load.ThirdChannel,
+				load.FourthChannel,
+				load.FifthChannel,
+				load.SixthChannel,
+				load.SeventhChannel,
+				load.EighthChannel,
+				load.NinthChannel,
+				load.TenthChannel,
+			)
+		}
 	}()
 
 	go func() {
