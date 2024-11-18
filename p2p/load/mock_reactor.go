@@ -300,16 +300,15 @@ func (mr *MockReactor) FillChannel(id p2p.ID, chID byte, count, msgSize int) (bo
 
 func (mr *MockReactor) FloodChannel(id p2p.ID, d time.Duration, chIDs ...byte) {
 	for _, chID := range chIDs {
-		//go func(d time.Duration, chID byte) {
-		start := time.Now()
-		for time.Since(start) < d {
-			sucess := mr.SendBytes(id, chID)
-			if !sucess {
-				mr.Logger.Error("failed to send bytes")
+		go func(d time.Duration, chID byte) {
+			start := time.Now()
+			for time.Since(start) < d {
+				sucess := mr.SendBytes(id, chID)
+				if sucess {
+					mr.Logger.Error("success")
+				}
 			}
-			time.Sleep(2 * time.Second)
-		}
-		//}(d, chID)
+		}(d, chID)
 	}
 }
 
