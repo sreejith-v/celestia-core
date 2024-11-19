@@ -199,21 +199,32 @@ func (mr *MockReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 
 const mebibyte = 1_048_576
 
-func (mr *MockReactor) PrintReceiveSpeed() {
+func (mr *MockReactor) PrintSpeeds() {
+	mr.metrics.mtx.Lock()
 	for _, peer := range mr.peers {
-		mr.mtx.Lock()
-		cumul := mr.cumulativeReceivedBytes[string(peer.ID())]
-		speed := mr.speed[string(peer.ID())]
-		mr.mtx.Unlock()
-		fmt.Println(fmt.Sprintf("%s: %d bytes received in speed %.2f mib/s\n", peer.ID(), cumul, speed/mebibyte))
-		//mr.Logger.Error("benchmark results", "peer", peer.ID(), "cumulativeReceivedBytes", cumul, "speed", speed)
+		cumul := mr.metrics.cumulativeReceivedBytes[string(peer.ID())]
+		speed := mr.metrics.downloadSpeed[string(peer.ID())]
+		fmt.Printf("%s: %d bytes received in speed %.2f mib/s\n", peer.ID(), cumul, speed/mebibyte)
 	}
 	total := float64(0)
-	for _, speed := range mr.speed {
+	for _, speed := range mr.metrics.downloadSpeed {
 		total += speed
 	}
-	mr.Logger.Error("total bandwidth speed reached", "speed", fmt.Sprintf("%.2f mib/s", total/mebibyte))
-	mr.Logger.Error("----------------------------------")
+	fmt.Printf("total bandwidth download speed reached %.2f mib/s\n\n", total/mebibyte)
+
+	for _, peer := range mr.peers {
+		cumul := mr.metrics.cumulativeUploadBytes[string(peer.ID())]
+		speed := mr.metrics.uploadSpeed[string(peer.ID())]
+		fmt.Printf("%s: %d bytes sent in speed %.2f mib/s\n", peer.ID(), cumul, speed/mebibyte)
+	}
+	totalUpload := float64(0)
+	for _, speed := range mr.metrics.uploadSpeed {
+		totalUpload += speed
+	}
+	fmt.Printf("total bandwidth upload speed reached %.2f mib/s\n", totalUpload/mebibyte)
+	fmt.Println("----------------------------------")
+	fmt.Println()
+	mr.metrics.mtx.Unlock()
 }
 
 // Receive implements Reactor.
@@ -247,13 +258,13 @@ type Payload struct {
 func (mr *MockReactor) ReceiveEnvelope(e p2p.Envelope) {
 	switch msg := e.Message.(type) {
 	case *protomem.TestTx:
-		mr.mtx.Lock()
-		if _, ok := mr.startTime[string(e.Src.ID())]; !ok {
-			mr.startTime[string(e.Src.ID())] = time.Now()
+		mr.metrics.mtx.Lock()
+		if _, ok := mr.metrics.startDownloadTime[string(e.Src.ID())]; !ok {
+			mr.metrics.startDownloadTime[string(e.Src.ID())] = time.Now()
 		}
-		mr.cumulativeReceivedBytes[string(e.Src.ID())] += len(msg.Tx)
-		mr.speed[string(e.Src.ID())] = float64(mr.cumulativeReceivedBytes[string(e.Src.ID())]) / time.Now().Sub(mr.startTime[string(e.Src.ID())]).Seconds()
-		mr.mtx.Unlock()
+		mr.metrics.cumulativeReceivedBytes[string(e.Src.ID())] += len(msg.Tx)
+		mr.metrics.downloadSpeed[string(e.Src.ID())] = float64(mr.metrics.cumulativeReceivedBytes[string(e.Src.ID())]) / time.Now().Sub(mr.metrics.startDownloadTime[string(e.Src.ID())]).Seconds()
+		mr.metrics.mtx.Unlock()
 	default:
 		fmt.Printf("Unexpected message type %T\n", e.Message)
 		return
@@ -261,7 +272,9 @@ func (mr *MockReactor) ReceiveEnvelope(e p2p.Envelope) {
 }
 
 func (mr *MockReactor) SendBytes(id p2p.ID, chID byte, size int64) bool {
+	mr.mtx.Lock()
 	peer, has := mr.peers[id]
+	mr.mtx.Unlock()
 	if !has {
 		mr.Logger.Error("Peer not found")
 		return false
@@ -303,7 +316,16 @@ func (mr *MockReactor) FloodChannel(id p2p.ID, d time.Duration, chIDs ...byte) {
 		go func(d time.Duration, chID byte) {
 			start := time.Now()
 			for time.Since(start) < d {
-				mr.SendBytes(id, chID, mr.size.Load())
+				success := mr.SendBytes(id, chID, mr.size.Load())
+				if success {
+					mr.metrics.mtx.Lock()
+					if _, ok := mr.metrics.startUploadTime[string(id)]; !ok {
+						mr.metrics.startUploadTime[string(id)] = time.Now()
+					}
+					mr.metrics.cumulativeUploadBytes[string(id)] += int(mr.size.Load())
+					mr.metrics.uploadSpeed[string(id)] = float64(mr.metrics.cumulativeUploadBytes[string(id)]) / time.Now().Sub(mr.metrics.startUploadTime[string(id)]).Seconds()
+					mr.metrics.mtx.Unlock()
+				}
 			}
 		}(d, chID)
 	}

@@ -965,7 +965,7 @@ func NewNodeWithContext(ctx context.Context,
 
 		go func() {
 			for {
-				mockReactor.PrintReceiveSpeed()
+				mockReactor.PrintSpeeds()
 				time.Sleep(10 * time.Second)
 			}
 		}()

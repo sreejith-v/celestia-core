@@ -60,7 +60,7 @@ func TestMultipleConnections(t *testing.T) {
 	go func() {
 		for i := 0; i < 90; i++ {
 			for _, reactor := range reactors {
-				reactor.PrintReceiveSpeed()
+				reactor.PrintSpeeds()
 			}
 			fmt.Println("-----------------------------")
 			time.Sleep(5 * time.Second)
