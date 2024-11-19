@@ -255,14 +255,14 @@ func (mr *MockReactor) ReceiveEnvelope(e p2p.Envelope) {
 	}
 }
 
-func (mr *MockReactor) SendBytes(id p2p.ID, chID byte) bool {
+func (mr *MockReactor) SendBytes(id p2p.ID, chID byte, size int64) bool {
 	peer, has := mr.peers[id]
 	if !has {
 		mr.Logger.Error("Peer not found")
 		return false
 	}
 
-	b := make([]byte, mr.size.Load())
+	b := make([]byte, size)
 	_, err := rand.Read(b)
 	if err != nil {
 		mr.Logger.Error("Failed to generate random bytes")
@@ -283,7 +283,7 @@ func (mr *MockReactor) SendBytes(id p2p.ID, chID byte) bool {
 func (mr *MockReactor) FillChannel(id p2p.ID, chID byte, count, msgSize int) (bool, int, time.Duration) {
 	start := time.Now()
 	for i := 0; i < count; i++ {
-		success := mr.SendBytes(id, chID)
+		success := mr.SendBytes(id, chID, mr.size.Load())
 		if !success {
 			end := time.Now()
 			return success, i, end.Sub(start)
@@ -298,9 +298,7 @@ func (mr *MockReactor) FloodChannel(id p2p.ID, d time.Duration, chIDs ...byte) {
 		go func(d time.Duration, chID byte) {
 			start := time.Now()
 			for time.Since(start) < d {
-				mr.mtx.Lock()
-				mr.SendBytes(id, chID)
-				mr.mtx.Unlock()
+				mr.SendBytes(id, chID, mr.size.Load())
 			}
 		}(d, chID)
 	}

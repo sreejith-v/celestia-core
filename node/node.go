@@ -956,11 +956,11 @@ func NewNodeWithContext(ctx context.Context,
 	// Setup Transport.
 	transport, peerFilters := createTransport(config, nodeInfo, nodeKey, proxyApp, tracer)
 
-	mockReactor := load.NewMockReactor(load.DefaultTestChannels, 100)
+	mockReactor := load.NewMockReactor(load.DefaultTestChannels, 10_000)
 	mockReactor.SetLogger(logger.With("module", "mock"))
 
 	go func() {
-		time.Sleep(2 * time.Minute)
+		time.Sleep(time.Minute)
 		logger.Error("starting benchmark")
 
 		go func() {
@@ -971,35 +971,32 @@ func NewNodeWithContext(ctx context.Context,
 		}()
 
 		go func() {
-			time.Sleep(10 * time.Second)
-			for {
-				mockReactor.FloodAllPeers(10*time.Minute, load.FirstChannel)
-			}
+			mockReactor.FloodAllPeers(10*time.Minute, load.FirstChannel)
 		}()
 
-		go func() {
-			for _, size := range []int{
-				500,
-				1_000,
-				5_000,
-				10_000,
-				50_000,
-				100_000,
-				500_000,
-				1_000_000,
-				5_000_000,
-				10_000_000,
-				20_000_000,
-				30_000_000,
-				50_000_000,
-				100_000_000,
-				200_000_000,
-			} {
-				time.Sleep(30 * time.Second)
-				mockReactor.IncreaseSize(int64(size))
-				logger.Error("======> increased flood size", "size", size)
-			}
-		}()
+		//go func() {
+		//	for _, size := range []int{
+		//		500,
+		//		1_000,
+		//		5_000,
+		//		10_000,
+		//		50_000,
+		//		100_000,
+		//		500_000,
+		//		1_000_000,
+		//		5_000_000,
+		//		10_000_000,
+		//		20_000_000,
+		//		30_000_000,
+		//		50_000_000,
+		//		100_000_000,
+		//		200_000_000,
+		//	} {
+		//		time.Sleep(30 * time.Second)
+		//		mockReactor.IncreaseSize(int64(size))
+		//		logger.Error("======> increased flood size", "size", size)
+		//	}
+		//}()
 	}()
 
 	// Setup Switch.
