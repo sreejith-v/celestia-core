@@ -212,7 +212,7 @@ func (mr *MockReactor) PrintReceiveSpeed() {
 	for _, speed := range mr.speed {
 		total += speed
 	}
-	mr.Logger.Error("total bandwidth speed reached in mib/s", "speed", total)
+	mr.Logger.Error("total bandwidth speed reached", "speed", fmt.Sprintf("%.2f mib/s", total/mebibyte))
 	mr.Logger.Error("----------------------------------")
 }
 
