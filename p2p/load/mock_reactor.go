@@ -242,7 +242,6 @@ func (mr *MockReactor) PrintSpeeds() {
 
 // Receive implements Reactor.
 func (mr *MockReactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
-	fmt.Printf("received")
 	msg := &protomem.Message{}
 	err := proto.Unmarshal(msgBytes, msg)
 	if err != nil {
@@ -299,10 +298,6 @@ func (mr *MockReactor) SendBytes(id p2p.ID, chID byte, size int64) bool {
 		mr.Logger.Error("Failed to generate random bytes")
 		return false
 	}
-	//if chID == byte(0x01) {
-	//	fmt.Printf("hheheh")
-	//}
-
 	txs := &protomem.TestTx{StartTime: time.Now().Format(time.RFC3339Nano), Tx: b}
 	return p2p.SendEnvelopeShim(peer, p2p.Envelope{
 		Message:   txs,

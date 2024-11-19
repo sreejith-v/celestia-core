@@ -351,9 +351,6 @@ func (p *peer) Status() cmtconn.ConnectionStatus {
 // as a metric which Send cannot support.
 func (p *peer) SendEnvelope(e Envelope) bool {
 	if !p.IsRunning() {
-		//if e.ChannelID == byte(0xee) {
-		//	fmt.Printf("44444444")
-		//}
 		return false
 	} else if !p.hasChannel(e.ChannelID) {
 		if e.ChannelID != byte(0xee) {
@@ -366,16 +363,10 @@ func (p *peer) SendEnvelope(e Envelope) bool {
 		msg = w.Wrap()
 	}
 	msgBytes, err := proto.Marshal(msg)
-	//if e.ChannelID == byte(0xee) {
-	//	fmt.Printf("wwwwwww")
-	//}
 	if err != nil {
 		p.Logger.Error("marshaling message to send", "error", err)
 		return false
 	}
-	//if e.ChannelID == byte(0xee) {
-	//	fmt.Printf("666666")
-	//}
 	res := p.Send(e.ChannelID, msgBytes)
 	if res {
 		labels := []string{
@@ -385,9 +376,6 @@ func (p *peer) SendEnvelope(e Envelope) bool {
 		}
 		p.metrics.MessageSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
 	}
-	//if e.ChannelID == byte(0xee) {
-	//	fmt.Printf("777777")
-	//}
 	return res
 }
 
@@ -395,9 +383,6 @@ func (p *peer) SendEnvelope(e Envelope) bool {
 // send queue is full after timeout, specified by MConnection.
 // SendEnvelope replaces Send which will be deprecated in a future release.
 func (p *peer) Send(chID byte, msgBytes []byte) bool {
-	//if chID == byte(0xee) {
-	//	fmt.Printf("88888")
-	//}
 	if !p.IsRunning() {
 		return false
 	} else if !p.hasChannel(chID) {
@@ -413,9 +398,6 @@ func (p *peer) Send(chID byte, msgBytes []byte) bool {
 		}
 		p.metrics.PeerSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
 	}
-	//if chID == byte(0xee) {
-	//	fmt.Printf("101001010")
-	//}
 	return res
 }
 
@@ -443,9 +425,6 @@ func (p *peer) TrySendEnvelope(e Envelope) bool {
 		p.Logger.Error("marshaling message to send", "error", err)
 		return false
 	}
-	//if e.ChannelID == byte(0xee) {
-	//	fmt.Printf("11 11 11 11 11")
-	//}
 	res := p.TrySend(e.ChannelID, msgBytes)
 	if res {
 		labels := []string{
@@ -455,9 +434,6 @@ func (p *peer) TrySendEnvelope(e Envelope) bool {
 		}
 		p.metrics.MessageSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
 	}
-	//if e.ChannelID == byte(0xee) {
-	//	fmt.Printf("121212122111")
-	//}
 	return res
 }
 
@@ -466,14 +442,8 @@ func (p *peer) TrySendEnvelope(e Envelope) bool {
 // TrySendEnvelope replaces TrySend which will be deprecated in a future release.
 func (p *peer) TrySend(chID byte, msgBytes []byte) bool {
 	if !p.IsRunning() {
-		//if chID == byte(0xee) {
-		//	fmt.Printf("131313311")
-		//}
 		return false
 	} else if !p.hasChannel(chID) {
-		//if chID == byte(0xee) {
-		//	fmt.Printf("144141414144114")
-		//}
 		if chID != byte(0xee) {
 			return false
 		}
@@ -486,9 +456,6 @@ func (p *peer) TrySend(chID byte, msgBytes []byte) bool {
 		}
 		p.metrics.PeerSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
 	}
-	//if chID == byte(0xee) {
-	//	fmt.Printf("15151515151515")
-	//}
 	return res
 }
 
