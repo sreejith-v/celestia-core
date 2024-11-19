@@ -136,15 +136,23 @@ type MockReactor struct {
 	p2p.BaseReactor
 	channels []*conn.ChannelDescriptor
 
-	mtx                     sync.Mutex
-	peers                   map[p2p.ID]p2p.Peer
-	received                atomic.Int64
-	startTime               map[string]time.Time
-	cumulativeReceivedBytes map[string]int
-	speed                   map[string]float64
-	size                    atomic.Int64
+	mtx      sync.Mutex
+	peers    map[p2p.ID]p2p.Peer
+	received atomic.Int64
+	metrics  metrics
+	size     atomic.Int64
 
 	tracer trace.Tracer
+}
+
+type metrics struct {
+	mtx                     sync.Mutex
+	startDownloadTime       map[string]time.Time
+	cumulativeReceivedBytes map[string]int
+	downloadSpeed           map[string]float64
+	startUploadTime         map[string]time.Time
+	cumulativeUploadBytes   map[string]int
+	uploadSpeed             map[string]float64
 }
 
 // NewMockReactor creates a new mock reactor.
@@ -152,12 +160,17 @@ func NewMockReactor(channels []*conn.ChannelDescriptor, msgSize int) *MockReacto
 	s := atomic.Int64{}
 	s.Store(int64(msgSize))
 	mr := &MockReactor{
-		channels:                channels,
-		peers:                   make(map[p2p.ID]p2p.Peer),
-		startTime:               map[string]time.Time{},
-		speed:                   map[string]float64{},
-		cumulativeReceivedBytes: map[string]int{},
-		size:                    s,
+		channels: channels,
+		peers:    make(map[p2p.ID]p2p.Peer),
+		metrics: metrics{
+			startDownloadTime:       map[string]time.Time{},
+			downloadSpeed:           map[string]float64{},
+			cumulativeReceivedBytes: map[string]int{},
+			startUploadTime:         map[string]time.Time{},
+			cumulativeUploadBytes:   map[string]int{},
+			uploadSpeed:             map[string]float64{},
+		},
+		size: s,
 	}
 	mr.BaseReactor = *p2p.NewBaseReactor("MockReactor", mr)
 	return mr
