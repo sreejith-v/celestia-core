@@ -208,6 +208,11 @@ func (mr *MockReactor) PrintReceiveSpeed() {
 		fmt.Println(fmt.Sprintf("%s: %d bytes received in speed %.2f mib/s\n", peer.ID(), cumul, speed/mebibyte))
 		//mr.Logger.Error("benchmark results", "peer", peer.ID(), "cumulativeReceivedBytes", cumul, "speed", speed)
 	}
+	total := float64(0)
+	for _, speed := range mr.speed {
+		total += speed
+	}
+	mr.Logger.Error("total bandwidth speed reached in mib/s", "speed", total)
 	mr.Logger.Error("----------------------------------")
 }
 
