@@ -169,6 +169,7 @@ func WithTracer(tracer trace.Tracer) SwitchOption {
 // AddReactor adds the given reactor to the switch.
 // NOTE: Not goroutine safe.
 func (sw *Switch) AddReactor(name string, reactor Reactor) Reactor {
+	sw.Logger.Error("registering reactor", "name", name, "channels", reactor.GetChannels())
 	for _, chDesc := range reactor.GetChannels() {
 		chID := chDesc.ID
 		// No two reactors can share the same channel.

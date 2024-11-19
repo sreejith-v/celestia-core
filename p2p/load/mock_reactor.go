@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	FirstChannel   = byte(0x01)
+	FirstChannel   = byte(0xee)
 	SecondChannel  = byte(0x02)
 	ThirdChannel   = byte(0x03)
 	FourthChannel  = byte(0x04)

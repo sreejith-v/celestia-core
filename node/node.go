@@ -960,41 +960,46 @@ func NewNodeWithContext(ctx context.Context,
 	mockReactor.SetLogger(logger.With("module", "mock"))
 
 	go func() {
-		for {
+		time.Sleep(2 * time.Minute)
+		logger.Error("starting benchmark")
+
+		go func() {
+			for {
+				mockReactor.PrintReceiveSpeed()
+				time.Sleep(10 * time.Second)
+			}
+		}()
+
+		go func() {
 			time.Sleep(10 * time.Second)
-			mockReactor.PrintReceiveSpeed()
-		}
-	}()
+			for {
+				mockReactor.FloodAllPeers(10*time.Minute, load.FirstChannel)
+			}
+		}()
 
-	go func() {
-		time.Sleep(10 * time.Second)
-		for {
-			mockReactor.FloodAllPeers(10*time.Minute, load.FirstChannel)
-		}
-	}()
-
-	go func() {
-		for _, size := range []int{
-			500,
-			1_000,
-			5_000,
-			10_000,
-			50_000,
-			100_000,
-			500_000,
-			1_000_000,
-			5_000_000,
-			10_000_000,
-			20_000_000,
-			30_000_000,
-			50_000_000,
-			100_000_000,
-			200_000_000,
-		} {
-			time.Sleep(30 * time.Second)
-			mockReactor.IncreaseSize(int64(size))
-			logger.Error("======> increased flood size", "size", size)
-		}
+		go func() {
+			for _, size := range []int{
+				500,
+				1_000,
+				5_000,
+				10_000,
+				50_000,
+				100_000,
+				500_000,
+				1_000_000,
+				5_000_000,
+				10_000_000,
+				20_000_000,
+				30_000_000,
+				50_000_000,
+				100_000_000,
+				200_000_000,
+			} {
+				time.Sleep(30 * time.Second)
+				mockReactor.IncreaseSize(int64(size))
+				logger.Error("======> increased flood size", "size", size)
+			}
+		}()
 	}()
 
 	// Setup Switch.
