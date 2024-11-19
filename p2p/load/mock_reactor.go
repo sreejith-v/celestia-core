@@ -213,6 +213,7 @@ func (mr *MockReactor) PrintReceiveSpeed() {
 
 // Receive implements Reactor.
 func (mr *MockReactor) Receive(chID byte, peer p2p.Peer, msgBytes []byte) {
+	fmt.Printf("received")
 	msg := &protomem.Message{}
 	err := proto.Unmarshal(msgBytes, msg)
 	if err != nil {
@@ -297,7 +298,9 @@ func (mr *MockReactor) FloodChannel(id p2p.ID, d time.Duration, chIDs ...byte) {
 		go func(d time.Duration, chID byte) {
 			start := time.Now()
 			for time.Since(start) < d {
+				mr.mtx.Lock()
 				mr.SendBytes(id, chID)
+				mr.mtx.Unlock()
 			}
 		}(d, chID)
 	}
