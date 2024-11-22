@@ -2,6 +2,7 @@ package schema
 
 import (
 	"github.com/tendermint/tendermint/pkg/trace"
+	"time"
 )
 
 // P2PTables returns the list of tables that are used for p2p tracing.
@@ -12,13 +13,16 @@ func P2PTables() []string {
 		ReceivedBytesTable,
 		NetworkPacketsTable,
 		// "conn_buf",
+		TimedSentBytesTable,
+		TimedReceivedBytesTable,
 	}
 }
 
 const (
-	// PeerUpdateTable is the name of the table that stores the p2p peer
+	// PeersTable is the name of the table that stores the p2p peer
 	// updates.
 	PeersTable = "peers"
+	// Add table for peers sent/received bytes
 )
 
 // P2PPeerUpdate is an enum that represents the different types of p2p
@@ -122,4 +126,42 @@ func (c ConnectionBuffer) Table() string {
 
 func WriteConnBuffer(client trace.Tracer, size int) {
 	client.Write(ConnectionBuffer{Size: size})
+}
+
+const (
+	TimedSentBytesTable = "timed_sent_bytes"
+)
+
+type TimedSentBytes struct {
+	PeerID  string    `json:"peer_id"`
+	Channel byte      `json:"channel"`
+	Bytes   int       `json:"bytes"`
+	Time    time.Time `json:"time"`
+}
+
+func (s TimedSentBytes) Table() string {
+	return TimedSentBytesTable
+}
+
+func WriteTimedSentBytes(client trace.Tracer, peerID string, channel byte, bytes int, t time.Time) {
+	client.Write(TimedSentBytes{PeerID: peerID, Channel: channel, Bytes: bytes, Time: t})
+}
+
+const (
+	TimedReceivedBytesTable = "timed_received_bytes"
+)
+
+type TimedReceivedBytes struct {
+	PeerID  string    `json:"peer_id"`
+	Channel byte      `json:"channel"`
+	Bytes   int       `json:"bytes"`
+	Time    time.Time `json:"time"`
+}
+
+func (s TimedReceivedBytes) Table() string {
+	return TimedReceivedBytesTable
+}
+
+func WriteTimedReceivedBytes(client trace.Tracer, peerID string, channel byte, bytes int, t time.Time) {
+	client.Write(TimedReceivedBytes{PeerID: peerID, Channel: channel, Bytes: bytes, Time: t})
 }
