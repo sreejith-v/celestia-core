@@ -69,9 +69,6 @@ type EnvelopeSender interface {
 func SendEnvelopeShim(p Peer, e Envelope, lg log.Logger) bool {
 
 	if es, ok := p.(EnvelopeSender); ok {
-		//if e.ChannelID == byte(0xee) {
-		//	fmt.Printf("111111111")
-		//}
 		return es.SendEnvelope(e)
 	}
 	msg := e.Message
@@ -83,9 +80,6 @@ func SendEnvelopeShim(p Peer, e Envelope, lg log.Logger) bool {
 		lg.Error("marshaling message to send", "error", err)
 		return false
 	}
-	//if e.ChannelID == byte(0xee) {
-	//	fmt.Printf("222222")
-	//}
 	fmt.Printf("sending %s: %d bytes", p.ID(), len(msgBytes))
 	return p.Send(e.ChannelID, msgBytes)
 }
@@ -105,9 +99,6 @@ func TrySendEnvelopeShim(p Peer, e Envelope, lg log.Logger) bool {
 		msg = w.Wrap()
 	}
 	msgBytes, err := proto.Marshal(msg)
-	//if e.ChannelID == byte(0xee) {
-	//	fmt.Printf("3333333")
-	//}
 	if err != nil {
 		lg.Error("marshaling message to send", "error", err)
 		return false
@@ -353,9 +344,7 @@ func (p *peer) SendEnvelope(e Envelope) bool {
 	if !p.IsRunning() {
 		return false
 	} else if !p.hasChannel(e.ChannelID) {
-		if e.ChannelID != byte(0xee) {
-			return false
-		}
+		return false
 	}
 	msg := e.Message
 	metricLabelValue := p.mlc.ValueToMetricLabel(msg)
@@ -397,6 +386,7 @@ func (p *peer) Send(chID byte, msgBytes []byte) bool {
 			"chID", fmt.Sprintf("%#x", chID),
 		}
 		p.metrics.PeerSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
+		schema.WriteTimedSentBytes(p.traceClient, string(p.ID()), chID, len(msgBytes), time.Now())
 	}
 	return res
 }
@@ -455,6 +445,7 @@ func (p *peer) TrySend(chID byte, msgBytes []byte) bool {
 			"chID", fmt.Sprintf("%#x", chID),
 		}
 		p.metrics.PeerSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
+		schema.WriteTimedSentBytes(p.traceClient, string(p.ID()), chID, len(msgBytes), time.Now())
 	}
 	return res
 }
@@ -594,6 +585,7 @@ func createMConnection(
 		p.metrics.PeerReceiveBytesTotal.With(labels...).Add(float64(len(msgBytes)))
 		p.metrics.MessageReceiveBytesTotal.With(append(labels, "message_type", p.mlc.ValueToMetricLabel(msg))...).Add(float64(len(msgBytes)))
 		schema.WriteReceivedBytes(p.traceClient, string(p.ID()), chID, len(msgBytes))
+		schema.WriteTimedReceivedBytes(p.traceClient, string(p.ID()), chID, len(msgBytes), time.Now())
 		if nr, ok := reactor.(EnvelopeReceiver); ok {
 			nr.ReceiveEnvelope(Envelope{
 				ChannelID: chID,
