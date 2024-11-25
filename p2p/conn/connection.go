@@ -21,14 +21,17 @@ import (
 	"github.com/tendermint/tendermint/libs/service"
 	cmtsync "github.com/tendermint/tendermint/libs/sync"
 	"github.com/tendermint/tendermint/libs/timer"
+	"github.com/tendermint/tendermint/pkg/trace"
+	"github.com/tendermint/tendermint/pkg/trace/schema"
 	tmp2p "github.com/tendermint/tendermint/proto/tendermint/p2p"
 )
 
 const (
 	defaultMaxPacketMsgPayloadSize = 1024
 
+	// TODO(evan): Figure out if we need to change these
 	numBatchPacketMsgs = 10
-	minReadBufferSize  = 1024
+	minReadBufferSize  = 65536
 	minWriteBufferSize = 65536
 	updateStats        = 2 * time.Second
 
@@ -38,8 +41,8 @@ const (
 	defaultFlushThrottle = 100 * time.Millisecond
 
 	defaultSendQueueCapacity   = 1
-	defaultRecvBufferCapacity  = 4096
-	defaultRecvMessageCapacity = 22020096      // 21MB
+	defaultRecvBufferCapacity  = 40960000
+	defaultRecvMessageCapacity = 22020096000
 	defaultSendRate            = int64(512000) // 500KB/s
 	defaultRecvRate            = int64(512000) // 500KB/s
 	defaultSendTimeout         = 10 * time.Second
@@ -118,6 +121,8 @@ type MConnection struct {
 	created time.Time // time of creation
 
 	_maxPacketMsgSize int
+
+	tracer trace.Tracer
 }
 
 // MConnConfig is a MConnection configuration.
@@ -162,7 +167,8 @@ func NewMConnection(
 		chDescs,
 		onReceive,
 		onError,
-		DefaultMConnConfig())
+		DefaultMConnConfig(),
+		trace.NoOpTracer(), "")
 }
 
 // NewMConnectionWithConfig wraps net.Conn and creates multiplex connection with a config
@@ -172,6 +178,8 @@ func NewMConnectionWithConfig(
 	onReceive receiveCbFunc,
 	onError errorCbFunc,
 	config MConnConfig,
+	tracer trace.Tracer,
+	id string,
 ) *MConnection {
 	if config.PongTimeout >= config.PingInterval {
 		panic("pongTimeout must be less than pingInterval (otherwise, next ping will reset pong timer)")
@@ -189,6 +197,7 @@ func NewMConnectionWithConfig(
 		onError:       onError,
 		config:        config,
 		created:       time.Now(),
+		tracer:        tracer,
 	}
 
 	// Create channels
@@ -196,7 +205,7 @@ func NewMConnectionWithConfig(
 	channels := []*Channel{}
 
 	for _, desc := range chDescs {
-		channel := newChannel(mconn, *desc)
+		channel := newChannel(mconn, *desc, tracer, id)
 		channelsIdx[channel.desc.ID] = channel
 		channels = append(channels, channel)
 	}
@@ -758,9 +767,10 @@ type Channel struct {
 	maxPacketMsgPayloadSize int
 
 	Logger log.Logger
+	tracer schema.ChannelPacketTracer
 }
 
-func newChannel(conn *MConnection, desc ChannelDescriptor) *Channel {
+func newChannel(conn *MConnection, desc ChannelDescriptor, tracer trace.Tracer, id string) *Channel {
 	desc = desc.FillDefaults()
 	if desc.Priority <= 0 {
 		panic("Channel default priority must be a positive integer")
@@ -771,6 +781,7 @@ func newChannel(conn *MConnection, desc ChannelDescriptor) *Channel {
 		sendQueue:               make(chan []byte, desc.SendQueueCapacity),
 		recving:                 make([]byte, 0, desc.RecvBufferCapacity),
 		maxPacketMsgPayloadSize: conn.config.MaxPacketMsgPayloadSize,
+		tracer:                  schema.ChannelPacketTracer{Client: tracer, Channel: desc.ID, PeerID: id},
 	}
 }
 
