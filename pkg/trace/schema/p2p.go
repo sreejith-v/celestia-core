@@ -22,7 +22,6 @@ const (
 	// PeersTable is the name of the table that stores the p2p peer
 	// updates.
 	PeersTable = "peers"
-	// Add table for peers sent/received bytes
 )
 
 // P2PPeerUpdate is an enum that represents the different types of p2p

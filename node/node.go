@@ -958,6 +958,7 @@ func NewNodeWithContext(ctx context.Context,
 
 	mockReactor := load.NewMockReactor(load.DefaultTestChannels, 10_000)
 	mockReactor.SetLogger(logger.With("module", "mock"))
+	mockReactor.SetTracer(tracer)
 
 	go func() {
 		time.Sleep(time.Minute)
@@ -968,10 +969,6 @@ func NewNodeWithContext(ctx context.Context,
 				mockReactor.PrintSpeeds()
 				time.Sleep(10 * time.Second)
 			}
-		}()
-
-		go func() {
-			mockReactor.FloodAllPeers(10*time.Minute, load.FirstChannel)
 		}()
 
 		//go func() {
