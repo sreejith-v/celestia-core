@@ -182,6 +182,7 @@ func (lt *LocalTracer) saveEventToFile(event Event[Entry]) error {
 	}
 
 	if _, err := file.Write(append(eventJSON, '\n')); err != nil {
+		time.Sleep(100 * time.Millisecond)
 		return fmt.Errorf("failed to write event to file: %v", err)
 	}
 
