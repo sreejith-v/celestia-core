@@ -382,7 +382,12 @@ func (p *peer) Send(chID byte, msgBytes []byte) bool {
 			"chID", fmt.Sprintf("%#x", chID),
 		}
 		p.metrics.PeerSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
-		schema.WriteTimedSentBytes(p.traceClient, string(p.ID()), p.conn.RemoteAddr().String(), chID, len(msgBytes), time.Now())
+		addr, err := p.nodeInfo.NetAddress()
+		if err != nil {
+			fmt.Println("error getting net address")
+			fmt.Println(err)
+		}
+		schema.WriteTimedSentBytes(p.traceClient, string(p.ID()), addr.IP.String(), chID, len(msgBytes), time.Now())
 	}
 	return res
 }
@@ -437,7 +442,12 @@ func (p *peer) TrySend(chID byte, msgBytes []byte) bool {
 			"chID", fmt.Sprintf("%#x", chID),
 		}
 		p.metrics.PeerSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
-		schema.WriteTimedSentBytes(p.traceClient, string(p.ID()), p.conn.RemoteAddr().String(), chID, len(msgBytes), time.Now())
+		addr, err := p.nodeInfo.NetAddress()
+		if err != nil {
+			fmt.Println("error getting net address")
+			fmt.Println(err)
+		}
+		schema.WriteTimedSentBytes(p.traceClient, string(p.ID()), addr.IP.String(), chID, len(msgBytes), time.Now())
 	}
 	return res
 }
@@ -577,7 +587,12 @@ func createMConnection(
 		p.metrics.PeerReceiveBytesTotal.With(labels...).Add(float64(len(msgBytes)))
 		p.metrics.MessageReceiveBytesTotal.With(append(labels, "message_type", p.mlc.ValueToMetricLabel(msg))...).Add(float64(len(msgBytes)))
 		schema.WriteReceivedBytes(p.traceClient, string(p.ID()), chID, len(msgBytes))
-		schema.WriteTimedReceivedBytes(p.traceClient, string(p.ID()), p.conn.RemoteAddr().String(), chID, len(msgBytes), time.Now())
+		addr, err := p.nodeInfo.NetAddress()
+		if err != nil {
+			fmt.Println("error getting net address")
+			fmt.Println(err)
+		}
+		schema.WriteTimedReceivedBytes(p.traceClient, string(p.ID()), addr.IP.String(), chID, len(msgBytes), time.Now())
 		if nr, ok := reactor.(EnvelopeReceiver); ok {
 			nr.ReceiveEnvelope(Envelope{
 				ChannelID: chID,
