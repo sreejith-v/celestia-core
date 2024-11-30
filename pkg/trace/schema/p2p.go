@@ -132,18 +132,19 @@ const (
 )
 
 type TimedSentBytes struct {
-	PeerID  string    `json:"peer_id"`
-	Channel byte      `json:"channel"`
-	Bytes   int       `json:"bytes"`
-	Time    time.Time `json:"time"`
+	PeerID    string    `json:"peer_id"`
+	Channel   byte      `json:"channel"`
+	Bytes     int       `json:"bytes"`
+	Time      time.Time `json:"time"`
+	IPAddress string    `json:"ip_address"`
 }
 
 func (s TimedSentBytes) Table() string {
 	return TimedSentBytesTable
 }
 
-func WriteTimedSentBytes(client trace.Tracer, peerID string, channel byte, bytes int, t time.Time) {
-	client.Write(TimedSentBytes{PeerID: peerID, Channel: channel, Bytes: bytes, Time: t})
+func WriteTimedSentBytes(client trace.Tracer, peerID string, ipAddr string, channel byte, bytes int, t time.Time) {
+	client.Write(TimedSentBytes{PeerID: peerID, Channel: channel, Bytes: bytes, Time: t, IPAddress: ipAddr})
 }
 
 const (
@@ -151,16 +152,17 @@ const (
 )
 
 type TimedReceivedBytes struct {
-	PeerID  string    `json:"peer_id"`
-	Channel byte      `json:"channel"`
-	Bytes   int       `json:"bytes"`
-	Time    time.Time `json:"time"`
+	PeerID    string    `json:"peer_id"`
+	Channel   byte      `json:"channel"`
+	Bytes     int       `json:"bytes"`
+	Time      time.Time `json:"time"`
+	IPAddress string    `json:"ip_address"`
 }
 
 func (s TimedReceivedBytes) Table() string {
 	return TimedReceivedBytesTable
 }
 
-func WriteTimedReceivedBytes(client trace.Tracer, peerID string, channel byte, bytes int, t time.Time) {
-	client.Write(TimedReceivedBytes{PeerID: peerID, Channel: channel, Bytes: bytes, Time: t})
+func WriteTimedReceivedBytes(client trace.Tracer, peerID string, ipAddr string, channel byte, bytes int, t time.Time) {
+	client.Write(TimedReceivedBytes{PeerID: peerID, Channel: channel, Bytes: bytes, Time: t, IPAddress: ipAddr})
 }
