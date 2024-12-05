@@ -3,7 +3,6 @@ package p2p
 import (
 	"fmt"
 	"net"
-	"reflect"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -72,16 +71,16 @@ func SendEnvelopeShim(p Peer, e Envelope, lg log.Logger) bool {
 	if es, ok := p.(EnvelopeSender); ok {
 		return es.SendEnvelope(e)
 	}
-	msg := e.Message
-	if w, ok := msg.(Wrapper); ok {
-		msg = w.Wrap()
-	}
-	msgBytes, err := proto.Marshal(msg)
-	if err != nil {
-		lg.Error("marshaling message to send", "error", err)
-		return false
-	}
-	return p.Send(e.ChannelID, msgBytes)
+	//msg := e.Message
+	//if w, ok := msg.(Wrapper); ok {
+	//	msg = w.Wrap()
+	//}
+	//msgBytes, err := proto.Marshal(msg)
+	//if err != nil {
+	//	lg.Error("marshaling message to send", "error", err)
+	//	return false
+	//}
+	return p.Send(e.ChannelID, []byte(e.Message.String()))
 }
 
 // EnvelopeTrySendShim implements a shim to allow the legacy peer type that
@@ -94,16 +93,16 @@ func TrySendEnvelopeShim(p Peer, e Envelope, lg log.Logger) bool {
 	if es, ok := p.(EnvelopeSender); ok {
 		return es.TrySendEnvelope(e)
 	}
-	msg := e.Message
-	if w, ok := msg.(Wrapper); ok {
-		msg = w.Wrap()
-	}
-	msgBytes, err := proto.Marshal(msg)
-	if err != nil {
-		lg.Error("marshaling message to send", "error", err)
-		return false
-	}
-	return p.TrySend(e.ChannelID, msgBytes)
+	//msg := e.Message
+	//if w, ok := msg.(Wrapper); ok {
+	//	msg = w.Wrap()
+	//}
+	//msgBytes, err := proto.Marshal(msg)
+	//if err != nil {
+	//	lg.Error("marshaling message to send", "error", err)
+	//	return false
+	//}
+	return p.TrySend(e.ChannelID, []byte(e.Message.String()))
 }
 
 //----------------------------------------------------------
@@ -346,24 +345,24 @@ func (p *peer) SendEnvelope(e Envelope) bool {
 	} else if !p.hasChannel(e.ChannelID) {
 		return false
 	}
-	msg := e.Message
-	metricLabelValue := p.mlc.ValueToMetricLabel(msg)
-	if w, ok := msg.(Wrapper); ok {
-		msg = w.Wrap()
-	}
-	msgBytes, err := proto.Marshal(msg)
-	if err != nil {
-		p.Logger.Error("marshaling message to send", "error", err)
-		return false
-	}
-	res := p.Send(e.ChannelID, msgBytes)
+	//msg := e.Message
+	//metricLabelValue := p.mlc.ValueToMetricLabel(msg)
+	//if w, ok := msg.(Wrapper); ok {
+	//	msg = w.Wrap()
+	//}
+	//msgBytes, err := proto.Marshal(msg)
+	//if err != nil {
+	//	p.Logger.Error("marshaling message to send", "error", err)
+	//	return false
+	//}
+	res := p.Send(e.ChannelID, []byte(e.Message.String()))
 	if res {
-		labels := []string{
-			"message_type", metricLabelValue,
-			"chID", fmt.Sprintf("%#x", e.ChannelID),
-			"peer_id", string(p.ID()),
-		}
-		p.metrics.MessageSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
+		//labels := []string{
+		//	"message_type", metricLabelValue,
+		//	"chID", fmt.Sprintf("%#x", e.ChannelID),
+		//	"peer_id", string(p.ID()),
+		//}
+		//p.metrics.MessageSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
 	}
 	return res
 }
@@ -408,25 +407,25 @@ func (p *peer) TrySendEnvelope(e Envelope) bool {
 	} else if !p.hasChannel(e.ChannelID) {
 		return false
 	}
-	msg := e.Message
-	metricLabelValue := p.mlc.ValueToMetricLabel(msg)
-	if w, ok := msg.(Wrapper); ok {
-		msg = w.Wrap()
-	}
-	msgBytes, err := proto.Marshal(msg)
-	if err != nil {
-		p.Logger.Error("marshaling message to send", "error", err)
-		return false
-	}
-	res := p.TrySend(e.ChannelID, msgBytes)
-	if res {
-		labels := []string{
-			"message_type", metricLabelValue,
-			"chID", fmt.Sprintf("%#x", e.ChannelID),
-			"peer_id", string(p.ID()),
-		}
-		p.metrics.MessageSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
-	}
+	//msg := e.Message
+	//metricLabelValue := p.mlc.ValueToMetricLabel(msg)
+	//if w, ok := msg.(Wrapper); ok {
+	//	msg = w.Wrap()
+	//}
+	//msgBytes, err := proto.Marshal(msg)
+	//if err != nil {
+	//	p.Logger.Error("marshaling message to send", "error", err)
+	//	return false
+	//}
+	res := p.TrySend(e.ChannelID, []byte(e.Message.String()))
+	//if res {
+	//	labels := []string{
+	//		"message_type", metricLabelValue,
+	//		"chID", fmt.Sprintf("%#x", e.ChannelID),
+	//		"peer_id", string(p.ID()),
+	//	}
+	//	p.metrics.MessageSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
+	//}
 	return res
 }
 
@@ -573,19 +572,19 @@ func createMConnection(
 			// which does onPeerError.
 			panic(fmt.Sprintf("Unknown channel %X", chID))
 		}
-		mt := msgTypeByChID[chID]
-		msg := proto.Clone(mt)
-		err := proto.Unmarshal(msgBytes, msg)
-		if err != nil {
-			panic(fmt.Errorf("unmarshaling message: %s into type: %s", err, reflect.TypeOf(mt)))
-		}
-
-		if w, ok := msg.(Unwrapper); ok {
-			msg, err = w.Unwrap()
-			if err != nil {
-				panic(fmt.Errorf("unwrapping message: %s", err))
-			}
-		}
+		//mt := msgTypeByChID[chID]
+		//msg := proto.Clone(mt)
+		//err := proto.Unmarshal(msgBytes, msg)
+		//if err != nil {
+		//	panic(fmt.Errorf("unmarshaling message: %s into type: %s", err, reflect.TypeOf(mt)))
+		//}
+		//
+		//if w, ok := msg.(Unwrapper); ok {
+		//	msg, err = w.Unwrap()
+		//	if err != nil {
+		//		panic(fmt.Errorf("unwrapping message: %s", err))
+		//	}
+		//}
 
 		labels := []string{
 			"peer_id", string(p.ID()),
@@ -593,7 +592,7 @@ func createMConnection(
 		}
 
 		p.metrics.PeerReceiveBytesTotal.With(labels...).Add(float64(len(msgBytes)))
-		p.metrics.MessageReceiveBytesTotal.With(append(labels, "message_type", p.mlc.ValueToMetricLabel(msg))...).Add(float64(len(msgBytes)))
+		//p.metrics.MessageReceiveBytesTotal.With(append(labels, "message_type", p.mlc.ValueToMetricLabel(msg))...).Add(float64(len(msgBytes)))
 		//schema.WriteReceivedBytes(p.traceClient, string(p.ID()), chID, len(msgBytes))
 		if count3 > TracesBufferSize {
 			schema.WriteTimedReceivedBytes(p.traceClient, string(p.ID()), p.conn.RemoteAddr().String(), chID, count3, time.Now())
@@ -601,15 +600,15 @@ func createMConnection(
 		} else {
 			count3 += len(msgBytes)
 		}
-		if nr, ok := reactor.(EnvelopeReceiver); ok {
-			nr.ReceiveEnvelope(Envelope{
-				ChannelID: chID,
-				Src:       p,
-				Message:   msg,
-			})
-		} else {
-			reactor.Receive(chID, p, msgBytes)
-		}
+		//if nr, ok := reactor.(EnvelopeReceiver); ok {
+		//	nr.ReceiveEnvelope(Envelope{
+		//		ChannelID: chID,
+		//		Src:       p,
+		//		Message:   msg,
+		//	})
+		//} else {
+		//	reactor.Receive(chID, p, msgBytes)
+		//}
 	}
 
 	onError := func(r interface{}) {
