@@ -39,9 +39,9 @@ var DefaultTestChannels = []*p2p.ChannelDescriptor{
 	{
 		ID:                  FirstChannel,
 		Priority:            1,
-		SendQueueCapacity:   100000000000,
-		RecvBufferCapacity:  10000000000000,
-		RecvMessageCapacity: 200000000000000000,
+		SendQueueCapacity:   1_000_000_000,
+		RecvBufferCapacity:  5_000_000_000,
+		RecvMessageCapacity: 20_000_000_000,
 		MessageType:         &protomem.TestTx{},
 	},
 	//{
