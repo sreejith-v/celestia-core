@@ -956,7 +956,7 @@ func NewNodeWithContext(ctx context.Context,
 	// Setup Transport.
 	transport, peerFilters := createTransport(config, nodeInfo, nodeKey, proxyApp, tracer)
 
-	mockReactor := load.NewMockReactor(load.DefaultTestChannels, 5_000_000)
+	mockReactor := load.NewMockReactor(load.DefaultTestChannels, 500)
 	mockReactor.SetLogger(logger.With("module", "mock"))
 	mockReactor.SetTracer(tracer)
 
