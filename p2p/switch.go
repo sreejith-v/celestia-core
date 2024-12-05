@@ -747,6 +747,12 @@ func (sw *Switch) acceptRoutine() {
 			break
 		}
 
+		if sw.peers.Size() >= 17 {
+			sw.Logger.Error("skipping peer")
+			sw.transport.Cleanup(p)
+			continue
+		}
+
 		if !sw.IsPeerUnconditional(p.NodeInfo().ID()) {
 			// Ignore connection if we already have enough peers.
 			_, in, _ := sw.NumPeers()
@@ -762,7 +768,6 @@ func (sw *Switch) acceptRoutine() {
 
 				continue
 			}
-
 		}
 
 		if err := sw.addPeer(p); err != nil {
