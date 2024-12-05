@@ -17,6 +17,8 @@ import (
 	cmtconn "github.com/tendermint/tendermint/p2p/conn"
 )
 
+const TracesBufferSize = 50_000_000
+
 //go:generate ../scripts/mockery_generate.sh Peer
 const metricsTickerDuration = 10 * time.Second
 
@@ -384,8 +386,9 @@ func (p *peer) Send(chID byte, msgBytes []byte) bool {
 			"chID", fmt.Sprintf("%#x", chID),
 		}
 		p.metrics.PeerSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
-		if count > 5_000_000 {
+		if count > TracesBufferSize {
 			schema.WriteTimedSentBytes(p.traceClient, string(p.ID()), p.conn.RemoteAddr().String(), chID, count, time.Now())
+			count = 0
 		} else {
 			count += len(msgBytes)
 		}
@@ -445,8 +448,9 @@ func (p *peer) TrySend(chID byte, msgBytes []byte) bool {
 			"chID", fmt.Sprintf("%#x", chID),
 		}
 		p.metrics.PeerSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
-		if count2 > 5_000_000 {
+		if count2 > TracesBufferSize {
 			schema.WriteTimedSentBytes(p.traceClient, string(p.ID()), p.conn.RemoteAddr().String(), chID, count2, time.Now())
+			count2 = 0
 		} else {
 			count2 += len(msgBytes)
 		}
@@ -591,8 +595,9 @@ func createMConnection(
 		p.metrics.PeerReceiveBytesTotal.With(labels...).Add(float64(len(msgBytes)))
 		p.metrics.MessageReceiveBytesTotal.With(append(labels, "message_type", p.mlc.ValueToMetricLabel(msg))...).Add(float64(len(msgBytes)))
 		//schema.WriteReceivedBytes(p.traceClient, string(p.ID()), chID, len(msgBytes))
-		if count3 > 5_000_000 {
+		if count3 > TracesBufferSize {
 			schema.WriteTimedReceivedBytes(p.traceClient, string(p.ID()), p.conn.RemoteAddr().String(), chID, count3, time.Now())
+			count3 = 0
 		} else {
 			count3 += len(msgBytes)
 		}
