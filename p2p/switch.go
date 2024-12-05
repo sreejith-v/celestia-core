@@ -747,27 +747,19 @@ func (sw *Switch) acceptRoutine() {
 			break
 		}
 
-		if sw.peers.Size() >= 17 {
-			sw.Logger.Error("skipping peer")
+		// Ignore connection if we already have enough peers.
+		_, in, _ := sw.NumPeers()
+		if in >= sw.config.MaxNumInboundPeers {
+			sw.Logger.Info(
+				"Ignoring inbound connection: already have enough inbound peers",
+				"address", p.SocketAddr(),
+				"have", in,
+				"max", sw.config.MaxNumInboundPeers,
+			)
+
 			sw.transport.Cleanup(p)
+
 			continue
-		}
-
-		if !sw.IsPeerUnconditional(p.NodeInfo().ID()) {
-			// Ignore connection if we already have enough peers.
-			_, in, _ := sw.NumPeers()
-			if in >= sw.config.MaxNumInboundPeers {
-				sw.Logger.Info(
-					"Ignoring inbound connection: already have enough inbound peers",
-					"address", p.SocketAddr(),
-					"have", in,
-					"max", sw.config.MaxNumInboundPeers,
-				)
-
-				sw.transport.Cleanup(p)
-
-				continue
-			}
 		}
 
 		if err := sw.addPeer(p); err != nil {
