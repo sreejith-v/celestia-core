@@ -17,7 +17,7 @@ import (
 	cmtconn "github.com/tendermint/tendermint/p2p/conn"
 )
 
-const TracesBufferSize = 20_000_000
+const TracesBufferSize = 1_000_000
 
 //go:generate ../scripts/mockery_generate.sh Peer
 const metricsTickerDuration = 10 * time.Second
