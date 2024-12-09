@@ -273,6 +273,13 @@ func (mr *MockReactor) ReceiveEnvelope(e p2p.Envelope) {
 	switch msg := e.Message.(type) {
 	case *protomem.TestTx:
 		schema.WriteMsgLatency(mr.tracer, string(e.Src.ID()), e.Src.RemoteIP().String(), e.ChannelID, len(msg.Tx), msg.StartTime, time.Now().Format(time.RFC3339Nano))
+		mr.metrics.mtx.Lock()
+		if _, ok := mr.metrics.startDownloadTime[string(e.Src.ID())]; !ok {
+			mr.metrics.startDownloadTime[string(e.Src.ID())] = time.Now()
+		}
+		mr.metrics.cumulativeReceivedBytes[string(e.Src.ID())] += len(msg.Tx)
+		mr.metrics.downloadSpeed[string(e.Src.ID())] = float64(mr.metrics.cumulativeReceivedBytes[string(e.Src.ID())]) / time.Now().Sub(mr.metrics.startDownloadTime[string(e.Src.ID())]).Seconds()
+		mr.metrics.mtx.Unlock()
 	default:
 		fmt.Printf("Unexpected message type %T\n", e.Message)
 		return
