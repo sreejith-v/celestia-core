@@ -15,6 +15,7 @@ func P2PTables() []string {
 		// "conn_buf",
 		TimedSentBytesTable,
 		TimedReceivedBytesTable,
+		MsgLatencyTable,
 	}
 }
 
@@ -165,4 +166,25 @@ func (s TimedReceivedBytes) Table() string {
 
 func WriteTimedReceivedBytes(client trace.Tracer, peerID string, ipAddr string, channel byte, bytes int, t time.Time) {
 	client.Write(TimedReceivedBytes{PeerID: peerID, Channel: channel, Bytes: bytes, Time: t, IPAddress: ipAddr})
+}
+
+const (
+	MsgLatencyTable = "msg_latency"
+)
+
+type MsgLatency struct {
+	PeerID      string `json:"peer_id"`
+	Channel     byte   `json:"channel"`
+	Bytes       int    `json:"bytes"`
+	ReceiveTime string `json:"receive_time"`
+	SendTime    string `json:"send_time"`
+	IPAddress   string `json:"ip_address"`
+}
+
+func (s MsgLatency) Table() string {
+	return MsgLatencyTable
+}
+
+func WriteMsgLatency(client trace.Tracer, peerID string, ipAddr string, channel byte, bytes int, sendTime string, receiveTime string) {
+	client.Write(MsgLatency{PeerID: peerID, Channel: channel, Bytes: bytes, SendTime: sendTime, ReceiveTime: receiveTime, IPAddress: ipAddr})
 }
