@@ -26,7 +26,6 @@ import (
 
 const (
 	StateChannel       = byte(0x20)
-	DataChannel        = byte(0x21)
 	VoteChannel        = byte(0x22)
 	VoteSetBitsChannel = byte(0x23)
 
@@ -54,6 +53,7 @@ type Reactor struct {
 
 	Metrics     *Metrics
 	traceClient trace.Tracer
+	blockProp   BlockProp
 }
 
 type ReactorOption func(*Reactor)
@@ -67,6 +67,7 @@ func NewReactor(consensusState *State, waitSync bool, options ...ReactorOption) 
 		rs:          consensusState.GetRoundState(),
 		Metrics:     NopMetrics(),
 		traceClient: trace.NoOpTracer(),
+		blockProp:   nil, // todo(rach-id)
 	}
 	conR.BaseReactor = *p2p.NewBaseReactor("Consensus", conR, p2p.WithIncomingQueueSize(ReactorIncomingMessageQueueSize))
 
@@ -232,7 +233,7 @@ func (conR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	// ps.Disconnect()
 }
 
-// Receive implements Reactor
+// ReceiveEnvelope implements Reactor
 // NOTE: We process these messages even when we're fast_syncing.
 // Messages affect either a peer state or the consensus state.
 // Peer state updates can happen in parallel, but processing of
@@ -371,41 +372,13 @@ func (conR *Reactor) ReceiveEnvelope(e p2p.Envelope) {
 			conR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 		}
 
+		// todo(rach-id): make this data channel initialised separately
 	case DataChannel:
 		if conR.WaitSync() {
 			conR.Logger.Info("Ignoring message received during sync", "msg", msg)
 			return
 		}
-		switch msg := msg.(type) {
-		case *ProposalMessage:
-			ps.SetHasProposal(msg.Proposal)
-			conR.conS.peerMsgQueue <- msgInfo{msg, e.Src.ID()}
-			schema.WriteProposal(
-				conR.traceClient,
-				msg.Proposal.Height,
-				msg.Proposal.Round,
-				string(e.Src.ID()),
-				schema.Download,
-			)
-		case *ProposalPOLMessage:
-			ps.ApplyProposalPOLMessage(msg)
-			schema.WriteConsensusState(
-				conR.traceClient,
-				msg.Height,
-				msg.ProposalPOLRound,
-				string(e.Src.ID()),
-				schema.ConsensusPOL,
-				schema.Download,
-			)
-		case *BlockPartMessage:
-			ps.SetHasProposalBlockPart(msg.Height, msg.Round, int(msg.Part.Index))
-			conR.Metrics.BlockParts.With("peer_id", string(e.Src.ID())).Add(1)
-			schema.WriteBlockPart(conR.traceClient, msg.Height, msg.Round, msg.Part.Index, false, string(e.Src.ID()), schema.Download)
-			conR.conS.peerMsgQueue <- msgInfo{msg, e.Src.ID()}
-		default:
-			conR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
-		}
-
+		conR.blockProp.ReceiveEnvelope(e)
 	case VoteChannel:
 		if conR.WaitSync() {
 			conR.Logger.Info("Ignoring message received during sync", "msg", msg)
@@ -1820,82 +1793,6 @@ func (m *NewValidBlockMessage) ValidateBasic() error {
 func (m *NewValidBlockMessage) String() string {
 	return fmt.Sprintf("[ValidBlockMessage H:%v R:%v BP:%v BA:%v IsCommit:%v]",
 		m.Height, m.Round, m.BlockPartSetHeader, m.BlockParts, m.IsCommit)
-}
-
-//-------------------------------------
-
-// ProposalMessage is sent when a new block is proposed.
-type ProposalMessage struct {
-	Proposal *types.Proposal
-}
-
-// ValidateBasic performs basic validation.
-func (m *ProposalMessage) ValidateBasic() error {
-	return m.Proposal.ValidateBasic()
-}
-
-// String returns a string representation.
-func (m *ProposalMessage) String() string {
-	return fmt.Sprintf("[Proposal %v]", m.Proposal)
-}
-
-//-------------------------------------
-
-// ProposalPOLMessage is sent when a previous proposal is re-proposed.
-type ProposalPOLMessage struct {
-	Height           int64
-	ProposalPOLRound int32
-	ProposalPOL      *bits.BitArray
-}
-
-// ValidateBasic performs basic validation.
-func (m *ProposalPOLMessage) ValidateBasic() error {
-	if m.Height < 0 {
-		return errors.New("negative Height")
-	}
-	if m.ProposalPOLRound < 0 {
-		return errors.New("negative ProposalPOLRound")
-	}
-	if m.ProposalPOL.Size() == 0 {
-		return errors.New("empty ProposalPOL bit array")
-	}
-	if m.ProposalPOL.Size() > types.MaxVotesCount {
-		return fmt.Errorf("proposalPOL bit array is too big: %d, max: %d", m.ProposalPOL.Size(), types.MaxVotesCount)
-	}
-	return nil
-}
-
-// String returns a string representation.
-func (m *ProposalPOLMessage) String() string {
-	return fmt.Sprintf("[ProposalPOL H:%v POLR:%v POL:%v]", m.Height, m.ProposalPOLRound, m.ProposalPOL)
-}
-
-//-------------------------------------
-
-// BlockPartMessage is sent when gossipping a piece of the proposed block.
-type BlockPartMessage struct {
-	Height int64
-	Round  int32
-	Part   *types.Part
-}
-
-// ValidateBasic performs basic validation.
-func (m *BlockPartMessage) ValidateBasic() error {
-	if m.Height < 0 {
-		return errors.New("negative Height")
-	}
-	if m.Round < 0 {
-		return errors.New("negative Round")
-	}
-	if err := m.Part.ValidateBasic(); err != nil {
-		return fmt.Errorf("wrong Part: %v", err)
-	}
-	return nil
-}
-
-// String returns a string representation.
-func (m *BlockPartMessage) String() string {
-	return fmt.Sprintf("[BlockPart H:%v R:%v P:%v]", m.Height, m.Round, m.Part)
 }
 
 //-------------------------------------
